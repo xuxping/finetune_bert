@@ -42,7 +42,8 @@ python keras_bert_to_tensorflow.py \
 - 使用keras的tensorboard callback时，将write_grads=False
 - load_model时，需要设置custom_objects为keras-bert的get_custom_objects(), 不然会报错
 
-参考资料:
+### 参考资料:
+-----------
 1. [当Bert遇上Keras：这可能是Bert最简单的打开姿势](https://spaces.ac.cn/archives/6736)
 2. [keras-bert](https://github.com/CyberZHG/keras-bert)
 3. [keras_to_tensorflow](https://github.com/amir-abdi/keras_to_tensorflow)

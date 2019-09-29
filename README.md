@@ -33,7 +33,8 @@ python keras_bert_to_tensorflow.py \
     --output_model bert.pb                         # output tensorflow model
 ```
 
-Reference:
+### Reference:
+--------------
 1. [当Bert遇上Keras：这可能是Bert最简单的打开姿势](https://spaces.ac.cn/archives/6736)
 2. [keras-bert](https://github.com/CyberZHG/keras-bert)
 3. [keras_to_tensorflow](https://github.com/amir-abdi/keras_to_tensorflow)
