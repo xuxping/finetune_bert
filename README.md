@@ -1,4 +1,4 @@
-fine tune with keras-bert
+fine tune with keras-bert in classification task
 
 ### bert in keras
 -------------
@@ -26,7 +26,7 @@ fine tune with keras-bert
 ```
 
 
-4、Covert keras model to tensorflow `.pd` model
+4、Covert keras model to tensorflow `.pb` model
 ```
 python keras_bert_to_tensorflow.py \
     --input_model ./keras_bert01/03-0.9493.hdf5 \  # input keras model
@@ -36,4 +36,4 @@ python keras_bert_to_tensorflow.py \
 Reference:
 1. [当Bert遇上Keras：这可能是Bert最简单的打开姿势](https://spaces.ac.cn/archives/6736)
 2. [keras-bert](https://github.com/CyberZHG/keras-bert)
-3. [keras_to_tensorflow](kerashttps://github.com/amir-abdi/keras_to_tensorflow)
+3. [keras_to_tensorflow](https://github.com/amir-abdi/keras_to_tensorflow)

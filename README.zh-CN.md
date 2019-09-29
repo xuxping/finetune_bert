@@ -1,4 +1,4 @@
-fine tune with bert
+使用keras-bert 在分类任务上进行finetune
 
 ### bert in keras
 -------------
@@ -45,4 +45,4 @@ python keras_bert_to_tensorflow.py \
 参考资料:
 1. [当Bert遇上Keras：这可能是Bert最简单的打开姿势](https://spaces.ac.cn/archives/6736)
 2. [keras-bert](https://github.com/CyberZHG/keras-bert)
-3. [keras_to_tensorflow](kerashttps://github.com/amir-abdi/keras_to_tensorflow)
+3. [keras_to_tensorflow](https://github.com/amir-abdi/keras_to_tensorflow)
