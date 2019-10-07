@@ -16,8 +16,9 @@ from tensorflow.python.keras.models import load_model
 from sklearn.metrics import classification_report, confusion_matrix
 from keras_bert import get_custom_objects
 from optimizers import AdamWarmup
-from bert import BertForSequenceClassification
+from modeling_bert import BertForSequenceClassification
 import collections
+import time
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
@@ -134,8 +135,14 @@ def test(opts):
 
     # use get custiom_object to load model
     model = load_model(opts.save_dir, custom_objects=get_custom_objects())
+
+    start_time = time.time()
     y_pred = model.predict(X_test)
     y_pred = get_predict(y_pred, opts.thresold)
+
+    end_time = time.time()
+    qps = float(len(y_test) + 1) / float(end_time - start_time + 1)
+    print("qps: {}".format(qps))
 
     print(classification_report(y_test, y_pred, digits=4))
     print(confusion_matrix(y_test, y_pred))
