@@ -33,7 +33,7 @@ python keras_bert_to_tensorflow.py \
     --output_model bert.pb                         # output tensorflow model
 ```
 
-5. Covert keras model to tensorflow serving model
+5、 Covert keras model to tensorflow serving model
 ```
 python keras_to_tf_serving.py \
     --model_path ./keras_bert01/05-0.9523.hdf5 \

@@ -35,7 +35,7 @@ python keras_bert_to_tensorflow.py \
     --output_model bert.pb                         # 输出pb模型路径
 ```
 
-5. 将keras bert 模型转化 tensorflow serving 的格式
+5、 将keras bert 模型转化 tensorflow serving 的格式
 ```
 python keras_to_tf_serving.py \
     --model_path ./keras_bert01/05-0.9523.hdf5 \
