@@ -1,6 +1,4 @@
 # -*- coding:utf-8 -*-
-# Date: 2019/9/26 15:23
-# Author: xuxiaoping
 # Desc: Fine Tune with bert
 import argparse
 import codecs
@@ -21,7 +19,7 @@ import collections
 import time
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 def set_random():
@@ -137,7 +135,8 @@ def test(opts):
     model = load_model(opts.save_dir, custom_objects=get_custom_objects())
 
     start_time = time.time()
-    y_pred = model.predict(X_test)
+
+    y_pred = model.predict(X_test, batch_size=opts.batch_size)
     y_pred = get_predict(y_pred, opts.thresold)
 
     end_time = time.time()
@@ -153,11 +152,46 @@ def test(opts):
                 file_writer.write('{}\t{}\n'.format(pred, label[0]))
 
 
+def test_thresold(opts):
+    X_test, y_test = BertDataset(opts.test_file, opts).get_data()
+
+    # use get custiom_object to load model
+    model = load_model(opts.save_dir, custom_objects=get_custom_objects())
+
+    y_pred = model.predict(X_test)
+
+    percisions = []
+    recalls = []
+    f1s = []
+    last_p = 0
+    thresolds = [round(x, 2) for x in np.arange(0.5, 1.0, 0.05, 'float32')]
+    best_thresold = 0.5
+    for thresold in thresolds:
+        y_preds = get_predict(y_pred, float(thresold))
+        cm = confusion_matrix(y_test, y_preds)
+        p = float(cm[0][0]) / (cm[0][0] + cm[1][0])
+        r = float(cm[0][0]) / (cm[0][0] + cm[0][1])
+        f1 = 2 * p * r / (p + r)
+        percisions.append(round(p, 4))
+        recalls.append(round(r, 4))
+        f1s.append(round(f1, 4))
+        if p > last_p:
+            best_thresold = thresold
+
+    print("best thresold: {}".format(best_thresold))
+    print(thresolds)
+    print(percisions)
+    print(recalls)
+    print(f1s)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('--train', action='store_true', help='train mode')
     parser.add_argument('--test', action='store_true', help='test mode')
+    parser.add_argument('--test_thresold', action='store_true', help='test mode')
+
     parser.add_argument('--train_file', type=str, default=None,
                         help='train file')
     parser.add_argument('--dev_file', type=str, default=None,
@@ -195,3 +229,6 @@ if __name__ == '__main__':
 
     if opts.test:
         test(opts)
+
+    if opts.test_thresold:
+        test_thresold(opts)

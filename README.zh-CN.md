@@ -23,7 +23,7 @@
 ```
 !python finetune_bert.py --test \
     --test_file ./examples/dev.txt \
-    --save_dir ./keras_bert01/03-0.9493.hdf5 \
+    --save_dir./keras_bert01/05-0.9523.hdf5 \
     --vocab_file ~/.keras/datasets/chinese_L-12_H-768_A-12/vocab.txt
 ```
 
@@ -31,10 +31,17 @@
 4、将keras bert 模型转化 tensorflow 的pb格式， 参考[keras_to_tensorflow](kerashttps://github.com/amir-abdi/keras_to_tensorflow)进行修改后使用
 ```
 python keras_bert_to_tensorflow.py \
-    --input_model ./keras_bert01/03-0.9493.hdf5 \  # 输入keras模型路径
+    --input_model ./keras_bert01/05-0.9523.hdf5 \  # 输入keras模型路径
     --output_model bert.pb                         # 输出pb模型路径
 ```
 
+5. 将keras bert 模型转化 tensorflow serving 的格式
+```
+python keras_to_tf_serving.py \
+    --model_path ./keras_bert01/05-0.9523.hdf5 \
+    --export_model_dir ./tfserving_model/ \
+    --model_version keras_bert_v1
+```
 
 ### 使用建议：
 -------

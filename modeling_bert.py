@@ -1,6 +1,4 @@
 # -*- coding:utf-8 -*-
-# Date: 2019/9/26 15:09
-# Author: xuxiaoping
 # Desc: Keras bert model for sequence classification
 
 from keras_bert import load_trained_model_from_checkpoint

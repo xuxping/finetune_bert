@@ -1,6 +1,4 @@
 # -*- coding:utf-8 -*-
-# Date: 2019/9/27 10:26
-# Author: xuxiaoping
 # Desc: AdamWarmup
 
 from keras_bert.backend import backend as K

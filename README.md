@@ -15,22 +15,30 @@ fine tune with keras-bert in classification task
     --batch_size 32 \
     --epochs=5 \
     --save_dir ./keras_bert01 \
-    --vocab_file /home/xuxiaoping/.keras/datasets/chinese_L-12_H-768_A-12/vocab.txt
+    --vocab_file ~/.keras/datasets/chinese_L-12_H-768_A-12/vocab.txt
 ```
 
 3、test
 ```
 !python finetune_bert.py --test \
     --test_file ./examples/dev.txt \
-    --save_dir ./keras_bert01/03-0.9493.hdf5
+    --save_dir ./keras_bert01/05-0.9523.hdf5
 ```
 
 
 4、Covert keras model to tensorflow `.pb` model
 ```
 python keras_bert_to_tensorflow.py \
-    --input_model ./keras_bert01/03-0.9493.hdf5 \  # input keras model
+    --input_model ./keras_bert01/05-0.9523.hdf5 \  # input keras model
     --output_model bert.pb                         # output tensorflow model
+```
+
+5. Covert keras model to tensorflow serving model
+```
+python keras_to_tf_serving.py \
+    --model_path ./keras_bert01/05-0.9523.hdf5 \
+    --export_model_dir ./tfserving_model/ \
+    --model_version keras_bert_v1
 ```
 
 ### Reference:
