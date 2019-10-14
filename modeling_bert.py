@@ -3,7 +3,7 @@
 
 from keras_bert import load_trained_model_from_checkpoint
 
-from tensorflow.python.keras.layers import Dense, Lambda, Input
+from tensorflow.python.keras.layers import Dense, Lambda, Input, Dropout
 from tensorflow.python.keras.models import Model
 
 
@@ -19,6 +19,7 @@ def BertForSequenceClassification(config):
 
     x = bert_model([x1_in, x2_in])
     x = Lambda(lambda x: x[:, 0])(x)  # get first token embedding
+    x = Dropout(config.dropout)(x)
     p = Dense(2, activation='softmax')(x)
 
     model = Model([x1_in, x2_in], p)

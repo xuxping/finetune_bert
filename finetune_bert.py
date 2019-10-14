@@ -211,6 +211,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--maxlen', type=int, default=128, help='max seq len')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning rate')
+    parser.add_argument('--dropout', type=float, default=0.2, help='dropout rate')
     parser.add_argument('--batch_size', type=int, default=32, help='max seq len')
     parser.add_argument('--num_classes', type=int, default=2, help='num classes')
     parser.add_argument('--epochs', type=int, default=3, help='num classes')
