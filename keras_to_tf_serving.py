@@ -22,12 +22,14 @@ def export_model(model_path, export_model_dir, model_version):
 
     with tf.get_default_graph().as_default():
         # prediction_signature
-        tensor_info_input = tf.saved_model.utils.build_tensor_info(model.input)
+        tensor_token_input = tf.saved_model.utils.build_tensor_info(model.input[0])
+        tensor_segment_input = tf.saved_model.utils.build_tensor_info(model.input[1])
         tensor_info_output = tf.saved_model.utils.build_tensor_info(model.output)
         print(model.output.shape, '**', tensor_info_output)
         prediction_signature = (
             tf.saved_model.signature_def_utils.build_signature_def(
-                inputs={'text': tensor_info_input},  # Tensorflow.TensorInfo
+                inputs={'token': tensor_token_input,
+                        'segment': tensor_segment_input},  # Tensorflow.TensorInfo
                 outputs={'result': tensor_info_output},
                 method_name=tf.saved_model.signature_constants.PREDICT_METHOD_NAME))
 
@@ -46,7 +48,7 @@ def export_model(model_path, export_model_dir, model_version):
             signature_def_map={'prediction_signature': prediction_signature, },
         )
         print('step2 => Export path(%s) ready to export trained model' % export_path, '\n starting to export model...')
-        builder.save(as_text=True)
+        builder.save(as_text=False)
         print('Done exporting!')
 
 
