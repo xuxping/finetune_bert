@@ -7,7 +7,7 @@ fine tune with keras-bert in classification task
 
 2、finetune
 ```
-!python finetune_bert.py --train \
+python finetune_bert.py --train \
     --train_file ./examples/train.txt \
     --dev_file ./examples/dev.txt \
     --maxlen 128 \
@@ -20,7 +20,7 @@ fine tune with keras-bert in classification task
 
 3、test
 ```
-!python finetune_bert.py --test \
+python finetune_bert.py --test \
     --test_file ./examples/dev.txt \
     --save_dir ./keras_bert01/05-0.9523.hdf5
 ```
