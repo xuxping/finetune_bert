@@ -1,5 +1,11 @@
 使用keras-bert 在分类任务上进行finetune
 
+### 未来3个月（2019/12-2020/02）  
+
+1、基于bert打造一个通用的NLP算法底层框架（pretrain+finetune）   
+2、增加模型蒸馏能力  
+3、增加更多的使用样例(分类，NER，相似度，QA等)   
+
 ### bert in keras
 -------------
 1、下载Bert中文预训练模型：[chinese_L-12_H-768_A-12.zip](https://storage.googleapis.com/bert_models/2018_11_03/chinese_L-12_H-768_A-12.zip)
