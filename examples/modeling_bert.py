@@ -19,7 +19,7 @@ def BertForSequenceClassification(config):
 
     x = bert_model([x1_in, x2_in])
     x = Lambda(lambda x: x[:, 0])(x)  # get first token embedding
-    x = Dropout(config.dropout)(x)
+    x = Dropout(config.hidden_dropout_prob)(x)
     p = Dense(2, activation='softmax')(x)
 
     model = Model([x1_in, x2_in], p)

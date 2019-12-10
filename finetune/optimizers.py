@@ -1,8 +1,9 @@
 # -*- coding:utf-8 -*-
 # Desc: AdamWarmup
 
-from keras_bert.backend import backend as K
-from keras_bert.backend import keras
+import tensorflow as tf
+from tensorflow.python import keras
+from tensorflow.python.keras import backend as K
 
 __all__ = ['AdamWarmup']
 
@@ -125,3 +126,10 @@ class AdamWarmup(keras.optimizers.Optimizer):
         }
         base_config = super(AdamWarmup, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+custom_objects = {
+    'AdamWarmup': AdamWarmup,
+}
+
+tf.keras.utils.get_custom_objects().update(custom_objects)
