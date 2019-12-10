@@ -1,7 +1,4 @@
 # -*- coding:utf-8 -*-
-# Date: 2019/12/7
-# Author: xuxiaoping01
-# Desc:
 
 import codecs
 

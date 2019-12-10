@@ -1,7 +1,4 @@
 # -*- coding:utf-8 -*-
-# Date: 2019/11/2
-# Author: xuxiaoping01
-# Desc:
 from tensorflow.python.keras import layers
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras import initializers, regularizers, constraints

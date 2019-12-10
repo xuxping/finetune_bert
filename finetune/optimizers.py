@@ -1,5 +1,4 @@
 # -*- coding:utf-8 -*-
-# Desc: AdamWarmup
 
 import tensorflow as tf
 from tensorflow.python import keras

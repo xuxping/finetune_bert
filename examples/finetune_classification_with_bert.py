@@ -1,5 +1,4 @@
 # -*- coding:utf-8 -*-
-# Desc: Fine Tune with bert
 import argparse
 import codecs
 import os

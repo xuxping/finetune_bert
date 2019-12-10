@@ -1,7 +1,4 @@
 # -*- coding:utf-8 -*-
-# Date: 2019/11/16
-# Author: xuxiaoping01
-# Desc:
 import copy
 import json
 import logging
