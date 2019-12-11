@@ -3,6 +3,7 @@
 import codecs
 import csv
 import numpy as np
+import os
 
 
 class Dataset(object):
@@ -50,10 +51,22 @@ class Dataset(object):
     def get_test_datasets(self):
         raise NotImplementedError
 
-    def __len__(self):
-        return len(self.y)
-
     @staticmethod
     def get_data(token_ids, segment_ids, labels):
         return [np.array(token_ids, dtype=np.int32),
                 np.array(segment_ids, dtype=np.int32)], np.array(labels, dtype=np.int32)
+
+
+class ChnSentiCorpDataset(Dataset):
+
+    def get_train_datasets(self):
+        lines = self._read_dataset(os.path.join(self.data_dir, 'train.tsv'))
+        return self.preproccess(lines)
+
+    def get_dev_datasets(self):
+        lines = self._read_dataset(os.path.join(self.data_dir, 'dev.tsv'))
+        return self.preproccess(lines)
+
+    def get_test_datasets(self):
+        lines = self._read_dataset(os.path.join(self.data_dir, 'test.tsv'))
+        return self.preproccess(lines)
