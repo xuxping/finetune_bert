@@ -18,6 +18,7 @@ import collections
 import unicodedata
 import six
 import codecs
+import os
 
 
 def convert_to_unicode(text):
@@ -157,6 +158,13 @@ class BertTokenizer(object):
 
     def convert_ids_to_tokens(self, ids):
         return convert_by_vocab(self.inv_vocab, ids)
+
+    @classmethod
+    def from_pretrained(cls, pretrained_path_or_vocab_file, do_lower_case=True):
+        if os.path.isdir(pretrained_path_or_vocab_file):
+            pretrained_path_or_vocab_file = os.path.join(pretrained_path_or_vocab_file, 'vocab.txt')
+
+        return cls(pretrained_path_or_vocab_file, do_lower_case=do_lower_case)
 
 
 class BasicTokenizer(object):

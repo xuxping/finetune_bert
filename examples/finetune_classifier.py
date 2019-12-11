@@ -5,18 +5,16 @@ import os
 import random
 import sys
 
-os.environ['TF_KERAS'] = '1'
 sys.path.append('../')
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.keras.callbacks import ModelCheckpoint, TensorBoard
-# from modeling_bert import BertForSequenceClassification
 from finetune.modeling_bert import BertForSequenceClassification
 from tensorflow.python.keras.models import load_model
 from sklearn.metrics import classification_report, confusion_matrix
 from finetune.optimizers import AdamWarmup
 from finetune.tokenization_bert import BertTokenizer
-from finetune.dataset import Dataset
+from finetune.dataset import ChnSentiCorpDataset
 import time
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
@@ -30,24 +28,9 @@ def set_random():
     tf.set_random_seed(42)
 
 
-class ChnSentiCorpDataset(Dataset):
-
-    def get_train_datasets(self):
-        lines = self._read_dataset(os.path.join(self.data_dir, 'train.tsv'))
-        return self.preproccess(lines)
-
-    def get_dev_datasets(self):
-        lines = self._read_dataset(os.path.join(self.data_dir, 'dev.tsv'))
-        return self.preproccess(lines)
-
-    def get_test_datasets(self):
-        lines = self._read_dataset(os.path.join(self.data_dir, 'test.tsv'))
-        return self.preproccess(lines)
-
-
 def train(opts):
-    tokenizer = BertTokenizer(opts.vocab_file)
-    dataset = ChnSentiCorpDataset(opts.data_dir, tokenizer, opts.maxlen)
+    tokenizer = BertTokenizer.from_pretrained(opts.pretrained_path)
+    dataset = ChnSentiCorpDataset(opts.data_dir, tokenizer, opts.max_seq_len)
 
     X_train, y_train = dataset.get_train_datasets()
     X_dev, y_dev = dataset.get_dev_datasets()
@@ -56,7 +39,7 @@ def train(opts):
     optimizer = AdamWarmup(decay_steps=decay_steps,
                            warmup_steps=0,
                            lr=opts.lr,
-                           weight_decay=0.0,
+                           weight_decay=0.01,
                            clipnorm=1.0)
 
     model = BertForSequenceClassification().build(opts)
@@ -68,7 +51,7 @@ def train(opts):
     print(model.summary())
 
     # callbacks: save model
-    filepath = opts.save_dir + "/{epoch:02d}-{val_acc:.4f}.hdf5"
+    filepath = os.path.join(opts.save_dir, "{epoch:02d}-{val_acc:.4f}.hdf5")
     checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=False, mode='max')
 
     # callbacks: tensorboard
@@ -78,11 +61,12 @@ def train(opts):
               batch_size=opts.batch_size,
               epochs=opts.epochs,
               validation_data=(X_dev, y_dev),
-              class_weight='auto',
               callbacks=[checkpoint, tensorboard])
-    score, acc = model.evaluate(X_dev, y_dev, batch_size=opts.batch_size)
-    print('dev score:', score)
-    print('dev accuracy:', acc)
+
+    X_test, y_test = dataset.get_test_datasets()
+    score, acc = model.evaluate(X_test, y_test, batch_size=opts.batch_size)
+    print('test score:', score)
+    print('test accuracy:', acc)
 
 
 def get_predict(x, thresold=0.5):
@@ -96,8 +80,8 @@ def get_predict(x, thresold=0.5):
 
 
 def test(opts):
-    tokenizer = BertTokenizer(opts.vocab_file)
-    dataset = ChnSentiCorpDataset(opts.data_dir, tokenizer, opts.maxlen)
+    tokenizer = BertTokenizer.from_pretrained(opts.pretrained_path)
+    dataset = ChnSentiCorpDataset(opts.data_dir, tokenizer, opts.max_seq_len)
     X_test, y_test = dataset.get_test_datasets()
 
     # use get custiom_object to load model
@@ -106,7 +90,7 @@ def test(opts):
     start_time = time.time()
 
     y_pred = model.predict(X_test, batch_size=opts.batch_size)
-    y_pred = get_predict(y_pred, opts.thresold)
+    y_pred = np.argmax(y_pred)
 
     end_time = time.time()
     qps = float(len(y_test) + 1) / float(end_time - start_time + 1)
@@ -129,27 +113,18 @@ if __name__ == '__main__':
     parser.add_argument('--test_threshold', action='store_true', help='test mode')
     parser.add_argument('--data_dir', type=str, default='../datasets/chnsenticorp')
 
-    parser.add_argument('--bert_config_path', type=str,
-                        default=None,
-                        help='bert config path')
-    parser.add_argument('--bert_checkpoint_path', type=str,
-                        default=None,
-                        help='bert config path')
-    parser.add_argument('--vocab_file', type=str,
-                        default=None,
-                        help='vocab file')
+    parser.add_argument('--pretrained_path', type=str, default=None, help='bert pretrained path')
 
-    parser.add_argument('--maxlen', type=int, default=128, help='max seq len')
-    parser.add_argument('--lr', type=float, default=1e-5, help='learning rate')
+    parser.add_argument('--max_seq_len', type=int, default=256, help='max seq len')
+    parser.add_argument('--lr', type=float, default=5e-5, help='learning rate')
     parser.add_argument('--hidden_dropout_prob', type=float, default=0.2, help='dropout rate')
-    parser.add_argument('--batch_size', type=int, default=16, help='max seq len')
+    parser.add_argument('--batch_size', type=int, default=24, help='max seq len')
     parser.add_argument('--num_labels', type=int, default=2, help='num labels')
     parser.add_argument('--initializer_range', type=float, default=0.02, help='initializer range')
-    parser.add_argument('--epochs', type=int, default=3, help='train epochs')
+    parser.add_argument('--epochs', type=int, default=10, help='train epochs')
     parser.add_argument('--save_dir', type=str, default=None,
                         help='model save dir')
     parser.add_argument('--log_dir', type=str, default='./logs', help='run log dir')
-    parser.add_argument('--thresold', type=float, default=0.5, help='percision thresold')
 
     parser.add_argument('--write_test_result', type=str, default=None, help='file to write test result')
 
