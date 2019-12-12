@@ -45,9 +45,9 @@ def load_vocab(vocab_file):
     """Loads a vocabulary file into a dictionary."""
     vocab = collections.OrderedDict()
     with codecs.open(vocab_file, 'r', encoding='utf-8') as reader:
-        for index, line in enumerate(reader):
+        for line in reader:
             token = line.strip()
-            vocab[token] = index
+            vocab[token] = len(vocab)
 
     return vocab
 
@@ -147,11 +147,16 @@ class BertTokenizer(object):
             segment_ids.append(1)
 
         input_ids = self.convert_tokens_to_ids(tokens)
+        # The mask has 1 for real tokens and 0 for padding tokens. Only real
+        # tokens are attended to.
+        input_mask = [1] * len(input_ids)
+
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
             input_ids.append(0)
             segment_ids.append(0)
-        return input_ids, segment_ids
+            input_mask.append(0)
+        return input_ids, segment_ids, input_mask
 
     def convert_tokens_to_ids(self, tokens):
         return convert_by_vocab(self.vocab, tokens)
