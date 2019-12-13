@@ -1,16 +1,15 @@
 # -*- coding:utf-8 -*-
-# Desc: Covert keras model to tf serving model
+# 将keras的hdf5格式转成tf serving
 
 import os
 from argparse import ArgumentParser
 
-os.environ['TF_KERAS'] = '1'
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import tensorflow as tf
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras.models import load_model
-from keras_bert import get_custom_objects
+from finetune.modeling_bert import *
 
 
 def export_model(model_path, export_model_dir, model_version):
@@ -18,18 +17,18 @@ def export_model(model_path, export_model_dir, model_version):
     see:
         https://github.com/jefferyUstc/MnistOnKeras/blob/master/export_model.py
     """
-    model = load_model(model_path, custom_objects=get_custom_objects())
+    model = load_model(model_path)
 
     with tf.get_default_graph().as_default():
         # prediction_signature
         tensor_token_input = tf.saved_model.utils.build_tensor_info(model.input[0])
-        tensor_segment_input = tf.saved_model.utils.build_tensor_info(model.input[1])
+        # tensor_segment_input = tf.saved_model.utils.build_tensor_info(model.input[1])
         tensor_info_output = tf.saved_model.utils.build_tensor_info(model.output)
         print(model.output.shape, '**', tensor_info_output)
         prediction_signature = (
             tf.saved_model.signature_def_utils.build_signature_def(
-                inputs={'token': tensor_token_input,
-                        'segment': tensor_segment_input},  # Tensorflow.TensorInfo
+                inputs={'token': tensor_token_input},  # Tensorflow.TensorInfo
+                # inputs={'segment': tensor_segment_input},  # Tensorflow.TensorInfo
                 outputs={'result': tensor_info_output},
                 method_name=tf.saved_model.signature_constants.PREDICT_METHOD_NAME))
 
