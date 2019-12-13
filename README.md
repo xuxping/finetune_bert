@@ -56,14 +56,6 @@ python keras_to_tf_serving.py \
     --model_version keras_bert_v1
 ```
 
-
-
-
-### 实现中遇到的一些问题
-* input_mask和attention_mask的区分
-    attention_mask：在做attention计算时，对padding的token进行mask，防止参与softmax计算。   
-    input_mask：对输入的token进行mask,在Bert训练阶段，根据策略进行mask；在finetune阶段不需要  
-
 ### 鸣谢  
 本实现有不少地方参考或复用了keras-bert和bert4keras的源码，感谢CyberZHG实现的[keras-bert](https://github.com/CyberZHG/keras-bert)和bojone的。   
 还有部分参考了[transformers](https://github.com/huggingface/transformers)的实现，加深了对Bert的了解
