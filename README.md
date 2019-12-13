@@ -56,10 +56,6 @@ python keras_to_tf_serving.py \
     --model_version keras_bert_v1
 ```
 
-### 鸣谢  
-本实现有不少地方参考或复用了keras-bert和bert4keras的源码，感谢CyberZHG实现的[keras-bert](https://github.com/CyberZHG/keras-bert)和bojone的。   
-还有部分参考了[transformers](https://github.com/huggingface/transformers)的实现，加深了对Bert的了解
-
 ### 参考资料:
 -----------
 1. [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/pdf/1810.04805.pdf)
