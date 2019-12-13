@@ -20,8 +20,8 @@
 
 ### 测试结果
 
-|数据集|dev acc|test acc|batch size|learing rate|train epoch|
-| ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+|dataset | dev acc | test acc | batch size | learing rate | train epoch |
+| ---- | ---- | ---- | ---- | ---- | ---- |
 |chnsenticorp|94.00%|94.08%|32|3e-5|4|
 
 **测试结果未精调，仅供效果实现参考**
