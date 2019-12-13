@@ -102,6 +102,7 @@ class BertTokenizer(object):
         self.inv_vocab = {v: k for k, v in self.vocab.items()}
         self.basic_tokenizer = BasicTokenizer(do_lower_case=do_lower_case)
         self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.vocab)
+        self.sepecial_tokens = ['[SEP]', '[CLS]', '[MASK]', '[UNK]', '[PAD]']
 
     def vocab_size(self):
         return len(self.vocab)
@@ -161,8 +162,11 @@ class BertTokenizer(object):
     def convert_tokens_to_ids(self, tokens):
         return convert_by_vocab(self.vocab, tokens)
 
-    def convert_ids_to_tokens(self, ids):
-        return convert_by_vocab(self.inv_vocab, ids)
+    def convert_ids_to_tokens(self, ids, remove_special_tokens=True):
+        tokens = convert_by_vocab(self.inv_vocab, ids)
+        if remove_special_tokens:
+            tokens = [token for token in tokens if token not in self.sepecial_tokens]
+        return tokens
 
     @classmethod
     def from_pretrained(cls, pretrained_path_or_vocab_file, do_lower_case=True):
