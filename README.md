@@ -57,7 +57,6 @@ python keras_to_tf_serving.py \
 ```
 
 ### 参考资料:
------------
 1. [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/pdf/1810.04805.pdf)
 2. [google-bert](https://github.com/google-research/bert)
 3. [当Bert遇上Keras：这可能是Bert最简单的打开姿势](https://spaces.ac.cn/archives/6736)
