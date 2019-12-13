@@ -7,9 +7,9 @@ import os
 
 
 class Dataset(object):
-    def __init__(self, data_dir, tokenizer, maxlen=512):
+    def __init__(self, data_dir, tokenizer, max_seq_len=512):
         self.data_dir = data_dir
-        self.maxlen = maxlen
+        self.max_seq_len = max_seq_len
         self.tokenizer = tokenizer
 
     def preproccess(self, lines):
@@ -18,16 +18,18 @@ class Dataset(object):
             try:
                 label = int(line[0])
             except:
-                print(line)
+                print("[err]: {}".format(line))
                 raise
-            token_id, segment_id = self.tokenizer.encode(text_a=line[1], max_seq_length=self.maxlen)
+            token_id, segment_id, input_mask = self.tokenizer.encode(text_a=line[1], max_seq_length=self.max_seq_len)
             token_ids.append(token_id)
             segment_ids.append(segment_id)
             labels.append(label)
             if lidx < 1:
                 print("text", line[1])
-                print("toke_id", token_id)
+                print("label", line[0])
+                print("token_id", token_id)
                 print("segment_id", segment_id)
+                print("input_mask", input_mask)
         return self.get_data(token_ids, segment_ids, labels)
 
     @staticmethod
@@ -37,8 +39,6 @@ class Dataset(object):
             next(reader)  # skip header
             lines = []
             for line in reader:
-                if len(line) != 2:
-                    continue
                 lines.append(line)
             return lines
 
@@ -56,6 +56,9 @@ class Dataset(object):
         return [np.array(token_ids, dtype=np.int32),
                 np.array(segment_ids, dtype=np.int32)], np.array(labels, dtype=np.int32)
 
+    def get_labels(self):
+        return []
+
 
 class ChnSentiCorpDataset(Dataset):
 
@@ -70,3 +73,6 @@ class ChnSentiCorpDataset(Dataset):
     def get_test_datasets(self):
         lines = self._read_dataset(os.path.join(self.data_dir, 'test.tsv'))
         return self.preproccess(lines)
+
+    def get_labels(self):
+        return [0, 1]
