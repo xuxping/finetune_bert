@@ -1,7 +1,5 @@
 # -*- coding:utf-8 -*-
 
-import codecs
-
 import numpy as np
 import tensorflow as tf
 
@@ -84,23 +82,10 @@ def load_model_weights_from_checkpoint(model,
             loader('cls/predictions/transform/LayerNorm/gamma'),
             loader('cls/predictions/transform/LayerNorm/beta'),
         ])
-        model.get_layer(name='MLM-Sim').set_weights([
+        model.get_layer(name='MLM-Proba').set_weights([
             loader('cls/predictions/output_bias'),
         ])
-        # model.get_layer(name='NSP-Dense').set_weights([
-        #     loader('bert/pooler/dense/kernel'),
-        #     loader('bert/pooler/dense/bias'),
-        # ])
         model.get_layer(name='NSP').set_weights([
             np.transpose(loader('cls/seq_relationship/output_weights')),
             loader('cls/seq_relationship/output_bias'),
         ])
-
-
-def load_vocabulary(vocab_path):
-    token_dict = {}
-    with codecs.open(vocab_path, 'r', 'utf8') as reader:
-        for line in reader:
-            token = line.strip()
-            token_dict[token] = len(token_dict)
-    return token_dict
