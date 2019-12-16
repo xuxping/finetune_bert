@@ -1,4 +1,4 @@
-tensorflow==1.13.1  # tensorflow-gpu==1.13.1
+tensorflow==1.15.0  # tensorflow-gpu==1.13.1
 keras-bert==0.78.0
 numpy
 scikit-learn==0.21.3
