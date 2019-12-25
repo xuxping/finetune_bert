@@ -1,10 +1,10 @@
 # -*- coding:utf-8 -*-
-from tensorflow.python.keras import layers
+import tensorflow as tf
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras import initializers, regularizers, constraints
 
 
-class LayerNormalization(layers.Layer):
+class LayerNormalization(tf.keras.layers.Layer):
 
     def __init__(self,
                  center=True,
