@@ -11,6 +11,7 @@ import os
 import copy
 from finetune.loader_bert import load_model_weights_from_checkpoint
 from finetune.configuration_bert import BertConfig
+from finetune.activations import ACT2FN
 
 # pretrained file
 BERT_CONFIG_NAME = 'bert_config.json'
@@ -26,38 +27,7 @@ def get_initializer(initializer_range=0.02):
     return tf.keras.initializers.TruncatedNormal(stddev=initializer_range)
 
 
-def gelu(x):
-    """ Gaussian Error Linear Unit.
-    Original Implementation of the gelu activation function in Google Bert repo when initially created.
-        For information: OpenAI GPT's gelu is slightly different (and gives slightly different results):
-        0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
-        Also see https://arxiv.org/abs/1606.08415
-    """
-    cdf = 0.5 * (1.0 + tf.math.erf(x / tf.math.sqrt(2.0)))
-    return x * cdf
-
-
-def gelu_new(x):
-    """Gaussian Error Linear Unit.
-    This is a smoother version of the RELU.
-    Original paper: https://arxiv.org/abs/1606.08415
-    """
-    cdf = 0.5 * (1.0 + tf.tanh(
-        (np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
-    return x * cdf
-
-
-def swish(x):
-    return x * tf.sigmoid(x)
-
-
-ACT2FN = {"gelu": tf.keras.layers.Activation(gelu),
-          "relu": tf.keras.activations.relu,
-          "swish": tf.keras.layers.Activation(swish),
-          "gelu_new": tf.keras.layers.Activation(gelu_new)}
-
-
-class MultiHeadSelfAttention(tf.keras.layers.Layer):
+class BertMultiHeadSelfAttention(tf.keras.layers.Layer):
     """Bert Multi-Head Self Attention.
     See https://github.com/huggingface/transformers/blob/master/transformers/modeling_tf_bert.py#L188-L257
     """
@@ -68,7 +38,7 @@ class MultiHeadSelfAttention(tf.keras.layers.Layer):
                  attention_probs_dropout_prob,
                  initializer_range,
                  **kwargs):
-        super(MultiHeadSelfAttention, self).__init__(**kwargs)
+        super(BertMultiHeadSelfAttention, self).__init__(**kwargs)
         if hidden_size % num_attention_heads != 0:
             raise ValueError(
                 "The hidden size (%d) is not a multiple of the number of attention "
@@ -81,7 +51,7 @@ class MultiHeadSelfAttention(tf.keras.layers.Layer):
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
     def build(self, input_shape):
-        super(MultiHeadSelfAttention, self).build(input_shape)
+        super(BertMultiHeadSelfAttention, self).build(input_shape)
         self.query = tf.keras.layers.Dense(self.all_head_size,
                                            kernel_initializer=get_initializer(self.initializer_range),
                                            name='query')
@@ -153,7 +123,7 @@ class MultiHeadSelfAttention(tf.keras.layers.Layer):
             'attention_probs_dropout_prob': self.attention_probs_dropout_prob,
             'initializer_range': self.initializer_range
         }
-        base_config = super(MultiHeadSelfAttention, self).get_config()
+        base_config = super(BertMultiHeadSelfAttention, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -388,11 +358,11 @@ class BertModel(BertPretrained):
         """构建单个Transformer Block"""
         x = inputs
         layers = [
-            MultiHeadSelfAttention(hidden_size=self.hidden_size,
-                                   num_attention_heads=self.num_attention_heads,
-                                   initializer_range=self.initializer_range,
-                                   attention_probs_dropout_prob=self.attention_probs_dropout_prob,
-                                   name=attention_name),
+            BertMultiHeadSelfAttention(hidden_size=self.hidden_size,
+                                       num_attention_heads=self.num_attention_heads,
+                                       initializer_range=self.initializer_range,
+                                       attention_probs_dropout_prob=self.attention_probs_dropout_prob,
+                                       name=attention_name),
             tf.keras.layers.Dropout(rate=self.hidden_dropout_prob,
                                     name='%s-Dropout' % attention_name),
             tf.keras.layers.Add(name='%s-Add' % attention_name),
@@ -516,7 +486,7 @@ class BertForSequenceClassification(BertPretrained):
 
 
 custom_objects = {
-    'MultiHeadSelfAttention': MultiHeadSelfAttention,
+    'BertMultiHeadSelfAttention': BertMultiHeadSelfAttention,
     'LayerNormalization': LayerNormalization,
     'FeedForward': FeedForward,
 }
