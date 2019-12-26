@@ -5,11 +5,13 @@ import tensorflow as tf
 import unittest
 
 print(sys.path)
-sys.path.append("../")
-from finetune import (BertConfig, BertTokenizer, BertForPretraining, BertForSequenceClassification)
+sys.path.append("/home/xuxiaoping/nlp/finetune_bert")
+from finetune.configuration_bert import BertConfig
+from finetune.tokenization_bert import BertTokenizer
+from finetune.modeling_bert import BertForPretraining, BertForSequenceClassification
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
-BERT_PRETRAINED_PATH = "../configs/bert/"
+BERT_PRETRAINED_PATH = "/data/xuxiaoping/npai/pretrained/chinese_L-12_H-768_A-12/"
 BERT_VOCAB_PATH = os.path.join(BERT_PRETRAINED_PATH, 'vocab.txt')
 BERT_CONFIG_PATH = os.path.join(BERT_PRETRAINED_PATH, "bert_config.json")
 
@@ -35,16 +37,15 @@ class TestBertModel(unittest.TestCase):
         print(segment_ids)
         print(input_mask)
 
-    def test_pretraining_model(self):
+    def test_bert_pretraining_model(self):
         # bert = BertForPretraining(self.config, training=True, trainable=True)
-        # bert.build()
         bert = BertForPretraining.from_pretrained(pretrained_path=BERT_PRETRAINED_PATH,
                                                   training=True)
 
         bert.model.summary()
 
     def test_for_sequence_classification_model(self):
-        # bert = BertForPretraining(self.config, training=True, trainable=True)
+        # bert = BertForPretraining(elf.config, training=True, trainable=True)
         bert = BertForSequenceClassification.from_pretrained(pretrained_path=BERT_PRETRAINED_PATH,
                                                              training=True,
                                                              num_labels=2)
