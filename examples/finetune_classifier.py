@@ -9,17 +9,17 @@ sys.path.append('../')
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.keras.callbacks import ModelCheckpoint, TensorBoard
-from finetune.modeling_bert import BertForSequenceClassification
 from tensorflow.python.keras.models import load_model
 from sklearn.metrics import classification_report, confusion_matrix
-from finetune.tokenization_bert import BertTokenizer
-from finetune.dataset import ChnSentiCorpDataset
+from finetune.dataset import ChnSentiCorpDataset, Sst2Dataset
 import time
 
+from finetune import BertForSequenceClassification, DistillBertForSequenceClassification
+from finetune import BertTokenizer, DistillBertTokenizer, DistillBertConfig
 from datetime import datetime
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 
 def set_random():
@@ -30,30 +30,45 @@ def set_random():
 
 
 TASK_NAMES = {
-    'chnsenticorp': ChnSentiCorpDataset
+    'chnsenticorp': ChnSentiCorpDataset,
+    'sst-2': Sst2Dataset,
+}
+MODELS = {
+    "bert": (BertTokenizer, BertForSequenceClassification),
+    'distillbert': (DistillBertTokenizer, DistillBertForSequenceClassification)
 }
 
 
 def train(opts):
-    tokenizer = BertTokenizer.from_pretrained(opts.pretrained_path)
+    tokenizer = MODELS[opts.model_name][0].from_pretrained(opts.pretrained_path)
 
     # get dataset
     dataset = TASK_NAMES[opts.task_name](opts.data_dir, tokenizer, opts.max_seq_len)
     X_train, y_train = dataset.get_train_datasets()
     X_dev, y_dev = dataset.get_dev_datasets()
-    if not opts.use_token_type:
+    if not opts.use_token_type or opts.model_name == 'distillbert':
         X_train = X_train[0]
         X_dev = X_dev[0]
     # build model
     optimizer = tf.keras.optimizers.Adam(lr=opts.lr, epsilon=1e-08)
 
-    bert = BertForSequenceClassification.from_pretrained(
-        pretrained_path=opts.pretrained_path,
-        trainable=True,
-        training=False,
-        max_seq_len=opts.max_seq_len,
-        num_labels=len(dataset.get_labels())
-    )
+    if opts.finetune:
+        bert = MODELS[opts.model_name][1].from_pretrained(
+            pretrained_path=opts.pretrained_path,
+            trainable=True,
+            training=False,
+            max_seq_len=opts.max_seq_len,
+            num_labels=len(dataset.get_labels())
+        )
+    else:
+        config_file = os.path.join(opts.pretrained_path, 'config.json')
+        config = DistillBertConfig.from_pretrained(config_file)
+        bert = DistillBertForSequenceClassification(config,
+                                                    training=False,
+                                                    trainable=True,
+                                                    num_labels=len(dataset.get_labels()))
+        bert.build()
+
     model = bert.model
     model.compile(
         optimizer=optimizer,
@@ -84,10 +99,10 @@ def train(opts):
 
 
 def test(opts):
-    tokenizer = BertTokenizer.from_pretrained(opts.pretrained_path)
+    tokenizer = MODELS[opts.model_name][0].from_pretrained(opts.pretrained_path)
     dataset = TASK_NAMES[opts.task_name](opts.data_dir, tokenizer, opts.max_seq_len)
     X_test, y_test = dataset.get_test_datasets()
-    if not opts.use_token_type:
+    if not opts.use_token_type or opts.model_name == 'distillbert':
         X_test = X_test[0]
     # use get custiom_object to load model
     model = load_model(opts.save_dir)
@@ -115,6 +130,9 @@ if __name__ == '__main__':
     parser.add_argument('--train', action='store_true', help='train mode')
     parser.add_argument('--test', action='store_true', help='test mode')
 
+    parser.add_argument('--finetune', type=int, default=1, help='finetune mode')
+
+    parser.add_argument('--model_name', type=str, default='bert', choices=MODELS.keys())
     parser.add_argument('--task_name', type=str, default='chnsenticorp', choices=TASK_NAMES.keys())
     parser.add_argument('--data_dir', type=str, default='../datasets/chnsenticorp')
     parser.add_argument('--pretrained_path', type=str, default=None, help='bert pretrained path')

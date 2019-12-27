@@ -4,23 +4,21 @@ import random
 import tensorflow as tf
 import unittest
 
-print(sys.path)
-sys.path.append("/home/xuxiaoping/nlp/finetune_bert")
-from finetune.configuration_bert import BertConfig
-from finetune.tokenization_bert import BertTokenizer
-from finetune.modeling_bert import BertForPretraining, BertForSequenceClassification
+sys.path.append("../")
+from finetune import (DistillBertConfig, DistillBertTokenizer, DistillBertForPretraining,
+                      DistillBertForSequenceClassification)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
-BERT_PRETRAINED_PATH = "/data/xuxiaoping/npai/pretrained/chinese_L-12_H-768_A-12/"
-BERT_VOCAB_PATH = os.path.join(BERT_PRETRAINED_PATH, 'vocab.txt')
-BERT_CONFIG_PATH = os.path.join(BERT_PRETRAINED_PATH, "bert_config.json")
+DistillBERT_PRETRAINED_PATH = "../configs/distillbert"
+DistillBERT_VOCAB_PATH = os.path.join(DistillBERT_PRETRAINED_PATH, 'vocab.txt')
+DistillBERT_CONFIG_PATH = os.path.join(DistillBERT_PRETRAINED_PATH, "config.json")
 
 
-class TestBertModel(unittest.TestCase):
+class TestDistillBertModel(unittest.TestCase):
 
     def setUp(self):
-        self.tokenizer = BertTokenizer.from_pretrained(BERT_VOCAB_PATH)
-        self.config = BertConfig.from_pretrained(BERT_CONFIG_PATH)
+        self.tokenizer = DistillBertTokenizer.from_pretrained(DistillBERT_VOCAB_PATH)
+        self.config = DistillBertConfig.from_pretrained(DistillBERT_CONFIG_PATH)
 
     def test_encode(self):
         text_a = "今天天气很不错噢"
@@ -37,43 +35,26 @@ class TestBertModel(unittest.TestCase):
         print(segment_ids)
         print(input_mask)
 
-    def test_bert_pretraining_model(self):
-        # bert = BertForPretraining(self.config, training=True, trainable=True)
-        bert = BertForPretraining.from_pretrained(pretrained_path=BERT_PRETRAINED_PATH,
-                                                  training=True)
+    def test_pretraining_model(self):
+        # bert = DistillBertForPretraining(self.config, training=True, trainable=True)
+        # bert.build()
+        bert = DistillBertForPretraining.from_pretrained(pretrained_path=DistillBERT_PRETRAINED_PATH,
+                                                         training=True)
 
         bert.model.summary()
 
     def test_for_sequence_classification_model(self):
-        # bert = BertForPretraining(elf.config, training=True, trainable=True)
-        bert = BertForSequenceClassification.from_pretrained(pretrained_path=BERT_PRETRAINED_PATH,
-                                                             training=True,
-                                                             num_labels=2)
+        bert = DistillBertForSequenceClassification(self.config, training=True, trainable=True)
+        bert.build()
+        # bert = DistillBertForSequenceClassification.from_pretrained(pretrained_path=DistillBERT_PRETRAINED_PATH,
+        #                                                             training=True,
+        #                                                             num_labels=2)
 
         bert.model.summary()
         input_ids = tf.constant([[7, 6, 0, 0, 0]], dtype=tf.int32)
         token_type_ids = tf.constant([[0, 0, 0, 0, 0]], dtype=tf.int32)
         ret = bert.model([input_ids, token_type_ids])  # build the network with dummy inputs
         print(ret)
-
-    def ids_tensor(self, shape, vocab_size, rng=None, name=None, dtype=None):
-        """Creates a random int32 tensor of the shape within the vocab size."""
-        if rng is None:
-            rng = random.Random()
-
-        total_dims = 1
-        for dim in shape:
-            total_dims *= dim
-
-        values = []
-        for _ in range(total_dims):
-            values.append(rng.randint(0, vocab_size - 1))
-
-        output = tf.constant(values,
-                             shape=shape,
-                             dtype=dtype if dtype is not None else tf.int32)
-
-        return output
 
 
 if __name__ == '__main__':

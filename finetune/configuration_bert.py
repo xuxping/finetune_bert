@@ -186,6 +186,7 @@ class DistillBertConfig(PretrainedConfig):
                  max_position_embeddings=512,
                  initializer_range=0.02,
                  layer_norm_eps=1e-12,
+                 sequence_classif_dropout_prob=0.2,
                  **kwargs):
         super(DistillBertConfig, self).__init__(**kwargs)
         if isinstance(vocab_size_or_config_json_file, str) or (sys.version_info[0] == 2
@@ -206,6 +207,8 @@ class DistillBertConfig(PretrainedConfig):
             self.max_position_embeddings = max_position_embeddings
             self.initializer_range = initializer_range
             self.layer_norm_eps = layer_norm_eps
+            self.sequence_classif_dropout_prob = sequence_classif_dropout_prob
+
         else:
             raise ValueError("First argument must be either a vocabulary size (int)"
                              " or the path to a pretrained model config file (str)")

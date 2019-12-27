@@ -1,33 +1,35 @@
 #! -*- coding: utf-8 -*-
-# BERT实现参考:
-# https://github.com/google-research/bert
-# https://github.com/huggingface/transformers
-# https://github.com/bojone/bert4keras
+"""
+implemented of DistilBERT
+Distilling the Knowledge in a Neural Network.
+https://arxiv.org/abs/1503.02531
+DistilBERT is possible to reduce the size of a BERT model by 40%, while retaining 97%
+of its language understanding capabilities and being 60% faster.
+main idea:
+    a triple loss combining language modeling, distillation and cosine-distance losses.
+"""
 
-
-import numpy as np
-import tensorflow as tf
-import os
 import copy
-from finetune.loader_bert import load_model_weights_from_checkpoint
-from finetune.configuration_bert import BertConfig
-from finetune.activations import ACT2FN
+import os
 
-# pretrained file
-BERT_CONFIG_NAME = 'bert_config.json'
-BERT_CHECKPOINT_NAME = 'bert_model.ckpt'
+import tensorflow as tf
+
+from finetune.activations import ACT2FN
+from finetune.configuration_bert import DistillBertConfig
+from finetune.layers import get_initializer, shape_list, create_position_ids, get_input_mask, BiasAdd
+from finetune.loader import load_distillbert_model_weights_from_checkpoint
 
 try:
     LayerNormalization = tf.keras.layers.LayerNormalization
 except AttributeError:
     from finetune.normalization import LayerNormalization
 
+# pretrained file
+DistllBERT_CONFIG_NAME = 'config.json'
+DistllBERT_CHECKPOINT_NAME = 'distill_bert_model.h5'
 
-def get_initializer(initializer_range=0.02):
-    return tf.keras.initializers.TruncatedNormal(stddev=initializer_range)
 
-
-class BertMultiHeadSelfAttention(tf.keras.layers.Layer):
+class DistillBertMultiHeadSelfAttention(tf.keras.layers.Layer):
     """Bert Multi-Head Self Attention.
     See https://github.com/huggingface/transformers/blob/master/transformers/modeling_tf_bert.py#L188-L257
     """
@@ -38,7 +40,7 @@ class BertMultiHeadSelfAttention(tf.keras.layers.Layer):
                  attention_probs_dropout_prob,
                  initializer_range,
                  **kwargs):
-        super(BertMultiHeadSelfAttention, self).__init__(**kwargs)
+        super(DistillBertMultiHeadSelfAttention, self).__init__(**kwargs)
         if hidden_size % num_attention_heads != 0:
             raise ValueError(
                 "The hidden size (%d) is not a multiple of the number of attention "
@@ -51,7 +53,7 @@ class BertMultiHeadSelfAttention(tf.keras.layers.Layer):
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
     def build(self, input_shape):
-        super(BertMultiHeadSelfAttention, self).build(input_shape)
+        super(DistillBertMultiHeadSelfAttention, self).build(input_shape)
         self.query = tf.keras.layers.Dense(self.all_head_size,
                                            kernel_initializer=get_initializer(self.initializer_range),
                                            name='query')
@@ -123,7 +125,7 @@ class BertMultiHeadSelfAttention(tf.keras.layers.Layer):
             'attention_probs_dropout_prob': self.attention_probs_dropout_prob,
             'initializer_range': self.initializer_range
         }
-        base_config = super(BertMultiHeadSelfAttention, self).get_config()
+        base_config = super(DistillBertMultiHeadSelfAttention, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -141,19 +143,19 @@ class FeedForward(tf.keras.layers.Layer):
     def build(self, input_shape):
         super(FeedForward, self).build(input_shape)
         # The activation is only applied to the "intermediate" hidden layer.
-        self.dense_1 = tf.keras.layers.Dense(self.intermediate_size,
-                                             kernel_initializer=get_initializer(self.initializer_range))
+        self.intermediate = tf.keras.layers.Dense(self.intermediate_size,
+                                                  kernel_initializer=get_initializer(self.initializer_range))
 
         self.intermediate_act_fn = ACT2FN[self.hidden_act]
 
         # Down-project back to `hidden_size` then add the residual.
-        self.dense_2 = tf.keras.layers.Dense(self.hidden_size,
-                                             kernel_initializer=get_initializer(self.initializer_range))
+        self.down_project = tf.keras.layers.Dense(self.hidden_size,
+                                                  kernel_initializer=get_initializer(self.initializer_range))
 
     def call(self, inputs, **kwargs):
-        hidden_states = self.dense_1(inputs)
+        hidden_states = self.intermediate(inputs)
         hidden_states = self.intermediate_act_fn(hidden_states)
-        hidden_states = self.dense_2(hidden_states)
+        hidden_states = self.down_project(hidden_states)
         return hidden_states
 
     def get_config(self):
@@ -167,31 +169,7 @@ class FeedForward(tf.keras.layers.Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-def shape_list(x):
-    """Deal with dynamic shape in tensorflow cleanly."""
-    static = x.shape.as_list()
-    dynamic = tf.shape(x)
-    return [dynamic[i] if s is None else s for i, s in enumerate(static)]
-
-
-def create_token_type_ids(tokens_input):
-    input_shape = shape_list(tokens_input)
-    token_type_ids = tf.fill(input_shape, 0)
-    return token_type_ids
-
-
-def create_position_ids(tokens_input):
-    input_shape = shape_list(tokens_input)
-    seq_length = input_shape[1]
-    position_ids = tf.range(seq_length, dtype=tf.int32)[tf.newaxis, :]
-    return position_ids
-
-
-def get_input_mask(tokens_input):
-    return tf.greater(tokens_input, 0)
-
-
-class BertPretrained(object):
+class DistillBertPretrained(object):
     def __init__(self, config, *inputs, **kwargs):
         self.model = None
 
@@ -200,18 +178,22 @@ class BertPretrained(object):
 
     @classmethod
     def from_pretrained(cls, pretrained_path, trainable=True, training=False,
-                        max_seq_len=None, **model_kwargs):
-        config_file = os.path.join(pretrained_path, BERT_CONFIG_NAME)
-        config = BertConfig.from_pretrained(config_file)
-        bert = cls(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **model_kwargs)
+                        max_seq_len=None, **kwargs):
+        config = kwargs.pop('config', None)
+        if config is None:
+            config_file = os.path.join(pretrained_path, DistllBERT_CONFIG_NAME)
+            config = DistillBertConfig.from_pretrained(config_file)
+        bert = cls(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
         bert.build()
-        checkpoint_file = os.path.join(pretrained_path, BERT_CHECKPOINT_NAME)
-        load_model_weights_from_checkpoint(bert.model, config, checkpoint_file)
+        checkpoint_file = os.path.join(pretrained_path, DistllBERT_CHECKPOINT_NAME)
+        load_distillbert_model_weights_from_checkpoint(bert.model, config, checkpoint_file, training=training)
         return bert
 
 
-class BertModel(BertPretrained):
+class DistillBertModel(DistillBertPretrained):
     """构建跟Bert一样结构的Transformer-based模型
+    与bert结构主要区别：
+        1、移除了token_type_ids和pooler层
     """
 
     def __init__(self, config, trainable=True, training=False, max_seq_len=None, **kwargs):
@@ -224,9 +206,9 @@ class BertModel(BertPretrained):
             kwargs:
                 use_token_type: 是否需要强制输入use_token_type, 兼容需求, 在使用句对分类的时候需要输入
         """
-        super(BertModel, self).__init__(config, trainable, training, max_seq_len, **kwargs)
+        super(DistillBertModel, self).__init__(config, trainable, training, max_seq_len, **kwargs)
         config = copy.deepcopy(config)
-        if not isinstance(config, BertConfig):
+        if not isinstance(config, DistillBertConfig):
             raise ValueError("config must be instance of BertConfig")
 
         self.trainable = trainable
@@ -243,7 +225,6 @@ class BertModel(BertPretrained):
         self.initializer_range = config.initializer_range or 0.02
         self.embedding_size = config.hidden_size
         self.hidden_act = config.hidden_act
-        self.type_vocab_size = config.type_vocab_size
         self.layer_norm_eps = config.layer_norm_eps
 
         self.use_token_type = kwargs.pop('use_token_type', False)
@@ -254,36 +235,47 @@ class BertModel(BertPretrained):
         self.max_seq_len = max_seq_len
         self.build()
 
-    def _embeddings(self, tokens_input, token_type_input=None, position_input=None):
-        self.tokens_embeddings = tf.keras.layers.Embedding(input_dim=self.vocab_size,
-                                                           output_dim=self.embedding_size,
-                                                           embeddings_initializer=get_initializer(
-                                                               self.initializer_range),
-                                                           name='Embedding-Token')(tokens_input)
-        if position_input is None:
-            position_input = tf.keras.layers.Lambda(lambda x: create_position_ids(x),
-                                                    name='Input-Position')(tokens_input)
-
-        if token_type_input is None:
-            token_type_input = tf.keras.layers.Lambda(lambda x: create_token_type_ids(x))(tokens_input)
+    def _embeddings(self, input_ids, position_ids=None):
+        self.share_token_embeddings = tf.keras.layers.Embedding(input_dim=self.vocab_size,
+                                                                output_dim=self.embedding_size,
+                                                                embeddings_initializer=get_initializer(
+                                                                    self.initializer_range),
+                                                                name='Embedding-Token')
+        self.token_embeddings = self.share_token_embeddings(input_ids)
+        if position_ids is None:
+            position_ids = tf.keras.layers.Lambda(lambda x: create_position_ids(x),
+                                                  name='Input-Position')(input_ids)
 
         position_embeddings = tf.keras.layers.Embedding(input_dim=self.max_position_embeddings,
                                                         output_dim=self.embedding_size,
                                                         embeddings_initializer=get_initializer(self.initializer_range),
-                                                        name='Embedding-Position')(position_input)
+                                                        name='Embedding-Position')(position_ids)
 
-        token_type_embeddings = tf.keras.layers.Embedding(input_dim=self.type_vocab_size,
-                                                          output_dim=self.embedding_size,
-                                                          embeddings_initializer=get_initializer(
-                                                              self.initializer_range),
-                                                          name='Embedding-Segment')(token_type_input)
         embeddings = tf.keras.layers.Add(name='Embedding-Add')(
-            [self.tokens_embeddings, position_embeddings, token_type_embeddings])
+            [self.token_embeddings, position_embeddings])
 
         embeddings = LayerNormalization(epsilon=self.layer_norm_eps, name='Embedding-Norm')(embeddings)
         embeddings = tf.keras.layers.Dropout(rate=self.hidden_dropout_prob, name='Embedding-Dropout')(embeddings)
 
         return embeddings
+
+    def embedding_similarity(self, inputs):
+        batch_size = shape_list(inputs)[0]
+        length = shape_list(inputs)[1]
+
+        def reshape1(inputs):
+            return tf.reshape(inputs, [-1, self.hidden_size])
+
+        def reshape2(inputs):
+            return tf.reshape(inputs, [batch_size, length, self.vocab_size])
+
+        def matmul(x):
+            return tf.matmul(x, self.share_token_embeddings.embeddings, transpose_b=True)
+
+        inputs = tf.keras.layers.Lambda(lambda x: reshape1(x))(inputs)
+        logits = tf.keras.layers.Lambda(lambda x: matmul(x))(inputs)
+
+        return tf.keras.layers.Lambda(lambda x: reshape2(x))(logits)
 
     def _trainable(self, _layer):
         if isinstance(self.trainable, (list, tuple, set)):
@@ -293,12 +285,11 @@ class BertModel(BertPretrained):
             return False
         return self.trainable
 
-    def get_pooled_output(self):
-        # pooled_output字段存放句子粒度的特征，可用于文本分类等任务
-        return self.pooler_output
+    def get_first_token_output(self):
+        first_token_tensor = tf.keras.layers.Lambda(lambda x: x[:, 0])(self.all_layer_outputs[-1])
+        return first_token_tensor
 
     def get_sequence_output(self):
-        # sequence_output字段存放字粒度的特征，可用于序列标注等任务
         return self.all_layer_outputs[-1]
 
     def get_all_layer_outputs(self):
@@ -306,24 +297,16 @@ class BertModel(BertPretrained):
         return self.all_layer_outputs
 
     def get_token_embeddings(self):
-        return self.tokens_embeddings
+        return self.token_embeddings
 
     def build(self):
-        """Bert模型构建函数"""
-        # 设置输入
-        tokens_input = tf.keras.layers.Input(shape=(self.max_seq_len,), name='Input-Token')
-        model_inputs = [tokens_input]
-        if self.use_token_type:
-            token_type_input = tf.keras.layers.Input(shape=(self.max_seq_len,), name='Input-Segment')
-            model_inputs.append(token_type_input)
-        else:
-            token_type_input = tf.keras.layers.Lambda(lambda x: create_token_type_ids(x), name='Input-Segment')(
-                tokens_input)
+        input_ids = tf.keras.layers.Input(shape=(self.max_seq_len,), name='Input-Token')
+        model_inputs = [input_ids]
 
-        embeddings = self._embeddings(tokens_input, token_type_input)
+        embeddings = self._embeddings(input_ids)
 
         # 主要Transformer Encoder部分
-        attention_mask = tf.keras.layers.Lambda(lambda x: get_input_mask(x), name="Attention-Mask")(tokens_input)
+        attention_mask = tf.keras.layers.Lambda(lambda x: get_input_mask(x), name="Attention-Mask")(input_ids)
         self.all_layer_outputs = []
 
         prev_output = embeddings
@@ -338,16 +321,8 @@ class BertModel(BertPretrained):
             self.all_layer_outputs.append(encoder_output)
             prev_output = encoder_output
 
-        # pooler，取[CLS]的输出做一次线性变换，用于句子或者句队的分类
-        sequence_output = self.all_layer_outputs[-1]
-        first_token_tensor = tf.keras.layers.Lambda(lambda x: x[:, 0], name='Pooler')(sequence_output)
-        self.pooler_output = tf.keras.layers.Dense(self.hidden_size,
-                                                   activation='tanh',
-                                                   kernel_initializer=get_initializer(self.initializer_range),
-                                                   name="Pooler-Dense")(first_token_tensor)
-
-        # sequence_output, pooler_output
-        outputs = [self.all_layer_outputs[-1], self.pooler_output]
+        # sequence_output
+        outputs = [self.all_layer_outputs[-1]]
 
         self.model = tf.keras.Model(model_inputs, outputs)
         for layer in self.model.layers:
@@ -358,11 +333,11 @@ class BertModel(BertPretrained):
         """构建单个Transformer Block"""
         x = inputs
         layers = [
-            BertMultiHeadSelfAttention(hidden_size=self.hidden_size,
-                                       num_attention_heads=self.num_attention_heads,
-                                       initializer_range=self.initializer_range,
-                                       attention_probs_dropout_prob=self.attention_probs_dropout_prob,
-                                       name=attention_name),
+            DistillBertMultiHeadSelfAttention(hidden_size=self.hidden_size,
+                                              num_attention_heads=self.num_attention_heads,
+                                              initializer_range=self.initializer_range,
+                                              attention_probs_dropout_prob=self.attention_probs_dropout_prob,
+                                              name=attention_name),
             tf.keras.layers.Dropout(rate=self.hidden_dropout_prob,
                                     name='%s-Dropout' % attention_name),
             tf.keras.layers.Add(name='%s-Add' % attention_name),
@@ -381,7 +356,7 @@ class BertModel(BertPretrained):
         xi = x
         x = layers[0]([x, attention_mask])
         # dropout
-        x = layers[1](x)
+        # x = layers[1](x) # remove dropout
 
         # Add & Norm
         x = layers[2]([xi, x])
@@ -397,49 +372,17 @@ class BertModel(BertPretrained):
         return x
 
 
-class BiasAdd(tf.keras.layers.Layer):
-    def __init__(self,
-                 initializer_range,
-                 **kwargs):
-        super(BiasAdd, self).__init__(**kwargs)
-        self.initializer_range = initializer_range
-
-    def get_config(self):
-        config = {
-            'initializer_range': self.initializer_range
-        }
-        base_config = super(BiasAdd, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-    def build(self, input_shape):
-        self.bias = self.add_weight(
-            shape=(int(input_shape[0]),),
-            initializer=get_initializer(self.initializer_range),
-            name='bias',
-        )
-        super(BiasAdd, self).build(input_shape)
-
-    def compute_output_shape(self, input_shape):
-        return input_shape
-
-    def call(self, inputs, **kwargs):
-        return tf.nn.bias_add(inputs, self.bais)
-
-
-class BertForPretraining(BertPretrained):
+class DistillBertForPretraining(DistillBertPretrained):
     """用于对Bert进行预训练"""
 
     def __init__(self, config, trainable=True, training=True, max_seq_len=None, **kwargs):
-        super(BertForPretraining, self).__init__(config, trainable, training, max_seq_len, **kwargs)
-        self.bert = BertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
-        self.input_embeddings = self.bert.get_token_embeddings()
+        super(DistillBertForPretraining, self).__init__(config, trainable, training, max_seq_len, **kwargs)
+        self.distillbert = DistillBertModel(config, trainable=trainable,
+                                            training=training, max_seq_len=max_seq_len,
+                                            **kwargs)
 
-        # NSP
-        self.seq_relationship = tf.keras.layers.Dense(2,
-                                                      kernel_initializer=get_initializer(config.initializer_range),
-                                                      name='NSP')
         # MLM
-        self.mlm_dense = tf.keras.layers.Dense(config.hidden_size,
+        self.transform = tf.keras.layers.Dense(config.hidden_size,
                                                kernel_initializer=get_initializer(config.initializer_range),
                                                name='MLM-Dense')
         self.transform_act_fn = ACT2FN[config.hidden_act]
@@ -447,29 +390,32 @@ class BertForPretraining(BertPretrained):
         self.bais_add = BiasAdd(initializer_range=config.initializer_range, name='MLM-Proba')
 
     def build(self):
-        sequence_out, pooler_out = self.bert.model.output
+        sequence_output = self.distillbert.get_sequence_output()
         # MLM
-        hidden_states = self.mlm_dense(sequence_out)
+        hidden_states = self.transform(sequence_output)
         hidden_states = self.transform_act_fn(hidden_states)
         hidden_states = self.LayerNorm(hidden_states)
-        hidden_states = self.input_embeddings(hidden_states)
+        hidden_states = self.distillbert.embedding_similarity(hidden_states)
 
         # 未加上softmax
         prediction_scores = self.bais_add(hidden_states)
 
-        # NSP
-        seq_relationship_score = self.seq_relationship(pooler_out)
-        output = [seq_relationship_score, prediction_scores]
-        self.model = tf.keras.Model(self.bert.model.input, output)
+        output = [prediction_scores]
+        self.model = tf.keras.Model(self.distillbert.model.input, output)
 
 
-class BertForSequenceClassification(BertPretrained):
+class DistillBertForSequenceClassification(DistillBertPretrained):
     # 句子或者句对分类(use_token_type)
     def __init__(self, config, trainable=True, training=False, max_seq_len=None, **kwargs):
-        super(BertForSequenceClassification, self).__init__(config, trainable, training, max_seq_len, **kwargs)
-        self.bert = BertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
+        super(DistillBertForSequenceClassification, self).__init__(config, trainable, training, max_seq_len, **kwargs)
+        self.bert = DistillBertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
         num_labels = int(kwargs.pop('num_labels', 2))
-        self.dropout = tf.keras.layers.Dropout(rate=config.hidden_dropout_prob, name='classifier-drop')
+
+        self.pre_classifier = tf.keras.layers.Dense(config.hidden_size,
+                                                    kernel_initializer=get_initializer(config.initializer_range),
+                                                    activation='relu',
+                                                    name="pre_classifier")
+        self.dropout = tf.keras.layers.Dropout(rate=config.sequence_classif_dropout_prob, name='classifier-drop')
         self.classifier = tf.keras.layers.Dense(units=num_labels,
                                                 activation='softmax',
                                                 kernel_regularizer=tf.keras.regularizers.l2(0.01),
@@ -477,16 +423,16 @@ class BertForSequenceClassification(BertPretrained):
                                                 name="classifier")
 
     def build(self, **kwargs):
-        # layers_out, pooler_out = bert.model.output
-        pooler_out = self.bert.get_pooled_output()
-        output = self.dropout(pooler_out)
+        cls_token = self.bert.get_first_token_output()
+        output = self.pre_classifier(cls_token)
+        output = self.dropout(output)
         output = self.classifier(output)
 
         self.model = tf.keras.Model(self.bert.model.input, output)
 
 
 custom_objects = {
-    'BertMultiHeadSelfAttention': BertMultiHeadSelfAttention,
+    'DistillBertMultiHeadSelfAttention': DistillBertMultiHeadSelfAttention,
     'LayerNormalization': LayerNormalization,
     'FeedForward': FeedForward,
 }
