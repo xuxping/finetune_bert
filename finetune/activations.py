@@ -1,7 +1,4 @@
 # -*- coding:utf-8 -*-
-# Date: 2019/12/25
-# Author: xuxiaoping01
-# Desc:
 
 import tensorflow as tf
 import numpy as np

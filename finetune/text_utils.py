@@ -1,7 +1,5 @@
 # -*- coding:utf-8 -*-
-# Date: 2019/12/16
-# Author: xuxiaoping01
-# Desc:
+
 import re
 import six
 import unicodedata
