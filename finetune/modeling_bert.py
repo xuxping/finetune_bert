@@ -22,7 +22,7 @@ except AttributeError:
     from finetune.normalization import LayerNormalization
 
 # pretrained file
-BERT_CONFIG_NAME = 'bert_config.json'
+BERT_CONFIG_NAME = 'config.json'
 BERT_CHECKPOINT_NAME = 'bert_model.ckpt'
 
 

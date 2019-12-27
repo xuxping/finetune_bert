@@ -4,14 +4,13 @@ import random
 import tensorflow as tf
 import unittest
 
-print(sys.path)
 sys.path.append("../")
 from finetune import (BertConfig, BertTokenizer, BertForPretraining, BertForSequenceClassification)
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 BERT_PRETRAINED_PATH = "../configs/bert/"
 BERT_VOCAB_PATH = os.path.join(BERT_PRETRAINED_PATH, 'vocab.txt')
-BERT_CONFIG_PATH = os.path.join(BERT_PRETRAINED_PATH, "bert_config.json")
+BERT_CONFIG_PATH = os.path.join(BERT_PRETRAINED_PATH, "config.json")
 
 
 class TestBertModel(unittest.TestCase):
