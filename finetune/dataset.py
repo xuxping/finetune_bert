@@ -76,3 +76,22 @@ class ChnSentiCorpDataset(Dataset):
 
     def get_labels(self):
         return [0, 1]
+
+
+class Sst2Dataset(Dataset):
+    """GLUE SST-2 Dataset."""
+
+    def get_train_datasets(self):
+        lines = self._read_dataset(os.path.join(self.data_dir, 'train.tsv'))
+        return self.preproccess(lines)
+
+    def get_dev_datasets(self):
+        lines = self._read_dataset(os.path.join(self.data_dir, 'dev.tsv'))
+        return self.preproccess(lines)
+
+    def get_test_datasets(self):
+        lines = self._read_dataset(os.path.join(self.data_dir, 'test.tsv'))
+        return self.preproccess(lines)
+
+    def get_labels(self):
+        return [0, 1]
