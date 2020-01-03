@@ -8,14 +8,18 @@ import sys
 sys.path.append('../')
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.keras.callbacks import ModelCheckpoint, TensorBoard
-from tensorflow.python.keras.models import load_model
 from sklearn.metrics import classification_report, confusion_matrix
 from finetune.dataset import ChnSentiCorpDataset, Sst2Dataset
 import time
 
-from finetune import BertForSequenceClassification, DistillBertForSequenceClassification
-from finetune import BertTokenizer, DistillBertTokenizer, DistillBertConfig
+from finetune import (BertConfig, BertTokenizer,
+                      BertForPretraining,
+                      BertForSequenceClassification)
+
+from finetune import (DistillBertConfig,
+                      DistillBertTokenizer,
+                      DistillBertForPretraining,
+                      DistillBertForSequenceClassification)
 from datetime import datetime
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
@@ -34,13 +38,20 @@ TASK_NAMES = {
     'sst-2': Sst2Dataset,
 }
 MODELS = {
-    "bert": (BertTokenizer, BertForSequenceClassification),
-    'distillbert': (DistillBertTokenizer, DistillBertForSequenceClassification)
+    "bert": (BertConfig,
+             BertTokenizer,
+             BertForPretraining,
+             BertForSequenceClassification),
+    'distillbert': (
+        DistillBertConfig,
+        DistillBertTokenizer,
+        DistillBertForPretraining,
+        DistillBertForSequenceClassification)
 }
 
 
 def train(opts):
-    tokenizer = MODELS[opts.model_name][0].from_pretrained(opts.pretrained_path)
+    tokenizer = MODELS[opts.model_name][1].from_pretrained(opts.pretrained_path)
 
     # get dataset
     dataset = TASK_NAMES[opts.task_name](opts.data_dir, tokenizer, opts.max_seq_len)
@@ -52,22 +63,17 @@ def train(opts):
     # build model
     optimizer = tf.keras.optimizers.Adam(lr=opts.lr, epsilon=1e-08)
 
-    if opts.finetune:
-        bert = MODELS[opts.model_name][1].from_pretrained(
-            pretrained_path=opts.pretrained_path,
-            trainable=True,
-            training=False,
-            max_seq_len=opts.max_seq_len,
-            num_labels=len(dataset.get_labels())
-        )
-    else:
-        config_file = os.path.join(opts.pretrained_path, 'config.json')
-        config = DistillBertConfig.from_pretrained(config_file)
-        bert = DistillBertForSequenceClassification(config,
-                                                    training=False,
-                                                    trainable=True,
-                                                    num_labels=len(dataset.get_labels()))
-        bert.build()
+    # GPU should support mixed precision and tensorflow version >= 1.14+
+    if opts.use_fp16:
+        optimizer = tf.train.experimental.enable_mixed_precision_graph_rewrite(optimizer)
+
+    bert = MODELS[opts.model_name][3].from_pretrained(
+        pretrained_path=opts.pretrained_path,
+        trainable=True,
+        training=False,
+        max_seq_len=opts.max_seq_len,
+        num_labels=len(dataset.get_labels())
+    )
 
     model = bert.model
     model.compile(
@@ -79,11 +85,12 @@ def train(opts):
 
     # callbacks: save model
     filepath = os.path.join(opts.save_dir, "{epoch:02d}-{val_acc:.4f}.hdf5")
-    checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=False, mode='max')
+    checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=False,
+                                                    mode='max')
 
     # callbacks: tensorboard
     tensorboard_dir = os.path.join(opts.log_dir, datetime.now().strftime("%Y%m%d-%H%M"))
-    tensorboard = TensorBoard(log_dir=tensorboard_dir)
+    tensorboard = tf.keras.callbacks.TensorBoard(log_dir=tensorboard_dir)
 
     model.fit(X_train, y_train,
               batch_size=opts.batch_size,
@@ -105,7 +112,7 @@ def test(opts):
     if not opts.use_token_type or opts.model_name == 'distillbert':
         X_test = X_test[0]
     # use get custiom_object to load model
-    model = load_model(opts.save_dir)
+    model = tf.keras.models.load_model(opts.save_dir)
 
     start_time = time.time()
     y_pred = model.predict(X_test, batch_size=opts.batch_size)
@@ -130,7 +137,7 @@ if __name__ == '__main__':
     parser.add_argument('--train', action='store_true', help='train mode')
     parser.add_argument('--test', action='store_true', help='test mode')
 
-    parser.add_argument('--finetune', type=int, default=1, help='finetune mode')
+    parser.add_argument('--use_fp16', action='store_true', help='use float16 mixed precision')
 
     parser.add_argument('--model_name', type=str, default='bert', choices=MODELS.keys())
     parser.add_argument('--task_name', type=str, default='chnsenticorp', choices=TASK_NAMES.keys())

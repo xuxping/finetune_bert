@@ -1,13 +1,12 @@
 # -*- coding:utf-8 -*-
 
 import tensorflow as tf
-from tensorflow.python import keras
 from tensorflow.python.keras import backend as K
 
 __all__ = ['AdamWarmup']
 
 
-class AdamWarmup(keras.optimizers.Optimizer):
+class AdamWarmup(tf.keras.optimizers.Optimizer):
     """Adam optimizer with warmup.
 
     Default parameters follow those provided in the original paper.
