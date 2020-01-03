@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 # 将keras的hdf5格式转成tf serving
-
+import sys
+sys.path.append('../')
 import os
 from argparse import ArgumentParser
 
@@ -9,7 +10,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import tensorflow as tf
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras.models import load_model
-from finetune.modeling_bert import *
+from finetune import *
 
 
 def export_model(model_path, export_model_dir, model_version):
@@ -21,13 +22,13 @@ def export_model(model_path, export_model_dir, model_version):
 
     with tf.get_default_graph().as_default():
         # prediction_signature
-        tensor_token_input = tf.saved_model.utils.build_tensor_info(model.input[0])
+        tensor_input_ids = tf.saved_model.utils.build_tensor_info(model.input[0])
         # tensor_segment_input = tf.saved_model.utils.build_tensor_info(model.input[1])
         tensor_info_output = tf.saved_model.utils.build_tensor_info(model.output)
         print(model.output.shape, '**', tensor_info_output)
         prediction_signature = (
             tf.saved_model.signature_def_utils.build_signature_def(
-                inputs={'token': tensor_token_input},  # Tensorflow.TensorInfo
+                inputs={'input_ids': tensor_input_ids},  # Tensorflow.TensorInfo
                 # inputs={'segment': tensor_segment_input},  # Tensorflow.TensorInfo
                 outputs={'result': tensor_info_output},
                 method_name=tf.saved_model.signature_constants.PREDICT_METHOD_NAME))

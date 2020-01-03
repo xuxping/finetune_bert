@@ -6,18 +6,18 @@
 采用tensorflow的keras实现，目前仅支持tensorflow1.13.1+。本文实现很多参考了[transformers](https://github.com/huggingface/transformers)和[bert4keras](https://github.com/bojone/bert4keras)，在此表示感谢。
 
 
-### 未来3个月计划（2019/12-2020/02）  
-1、基于bert打造一个通用的NLP算法底层框架（pretrain+finetune）   
-2、增加模型蒸馏能力  
-3、增加更多的使用样例(分类，NER，相似度，QA等)   
+### 更新 
+2020(plan):  
+* **2020/01/30**: 完善中英文注释和代码文档   
+* **2020/01/20**: 增加NER，相似度等任务   
+* **2020/01/10**: 发布中文版本：bert->distillbert，进行模型蒸馏  
 
-### 更新
-* 20200105(计划): 中文版本：bert->distillbert，进行模型蒸馏
-* **20191228:** 初步实现distillbert，并成功加载官方模型权重，对一些变量名进行更新，修复bert实现中一个错误，增加sst-2任务  
-* **20191214:** 调整modeling_bert的结构，统一from_pretrained   
-* **20191208:** 与官方bert进行对比，修复load_vocab中词id错位的问题，对chnsenticorp进行finetune结果达到了94%左右，与官方一致 
-* **20191207:** 结构微调，实现的过程中逐步加深对bert的理解，目前对chnsenticorp数据集finetune的结果只有90%左右，存在潜在问题未解决
-* **20191206:** 初步实现加载官方bert模型，不支持自己训练Bert，增加chnsenticorp文本分类示例    
+2019:  
+* **2019/12/28:** 初步实现distillbert，并成功加载官方模型权重，对一些变量名进行更新，修复bert实现中一个错误，增加sst-2任务  
+* **2019/12/14:** 调整modeling_bert的结构，统一from_pretrained   
+* **2019/12/08:** 与官方bert进行对比，修复load_vocab中词id错位的问题，对chnsenticorp进行finetune结果达到了94%左右，与官方一致 
+* **2019/12/07:** 结构微调，实现的过程中逐步加深对bert的理解，目前对chnsenticorp数据集finetune的结果只有90%左右，存在潜在问题未解决
+* **2019/12/06:** 初步实现加载官方bert模型，不支持自己训练Bert，增加chnsenticorp文本分类示例    
 
 ### 测试结果
 
@@ -53,30 +53,29 @@ finetune_classifier.py --test  \
     --save_dir ./keras_bert/xxx.hdf5
 ```
 
-
-4、 将keras bert 模型转化 tensorflow serving 的格式
+4、 将keras bert 模型转化 tensorflow serving 的格式，即可上线  
 ```
-python keras_to_tf_serving.py \
-    --model_path ./keras_bert01/05-0.9523.hdf5 \
+python tools/keras_to_tf_serving.py \
+    --model_path ./keras_bert/xxx.hdf5 \
     --export_model_dir ./tfserving_model/ \
-    --model_version keras_bert_v1
+    --model_version keras_bert_xxx
 ```
-
-### 知识蒸馏和模型压缩
-1. **Distilling the Knowledge in a Neural Network.** [paper](https://arxiv.org/abs/1503.02531)   
-2. **DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter.** arxiv 2019. [paper](https://arxiv.org/abs/1910.01108)   
-3. **TinyBERT: Distilling BERT for Natural Language Understanding**. 2019. [paper](https://arxiv.org/abs/1909.10351)  
 
 ### 一些问题
 1. 为什么只支持tf.keras?   
-    一是keras未来的趋势是与tensorflow整合，因此直接使用tf.keras实现。keras不支持sublayers，具体可参考[issues](https://github.com/keras-team/keras/issues/11653)。
+    一是keras未来的趋势是与tensorflow整合，因此直接使用tf.keras实现。低版本keras不支持sublayers，具体可参考[issues](https://github.com/keras-team/keras/issues/11653)。
     另外tf2.0版本太高，实际环境中还不敢使用
 
-### 参考资料:  
-1. [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/pdf/1810.04805.pdf)
-2. [google-bert](https://github.com/google-research/bert)
-3. [当Bert遇上Keras：这可能是Bert最简单的打开姿势](https://spaces.ac.cn/archives/6736)
-4. [bert4keras](https://github.com/bojone/bert4keras)
-5. [keras-bert](https://github.com/CyberZHG/keras-bert)
-6. [keras_to_tensorflow](https://github.com/amir-abdi/keras_to_tensorflow)
-7. https://github.com/huggingface/transformers
+### 参考资料  
+1. [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/pdf/1810.04805.pdf)  
+2. https://github.com/google-research/bert  
+3. https://github.com/bojone/bert4keras   
+4. https://github.com/CyberZHG/keras-bert   
+5. https://github.com/huggingface/transformers   
+6. https://github.com/amir-abdi/keras_to_tensorflow   
+7. [当Bert遇上Keras：这可能是Bert最简单的打开姿势](https://spaces.ac.cn/archives/6736)
+
+知识蒸馏和模型压缩：   
+1. **Distilling the Knowledge in a Neural Network.** [paper](https://arxiv.org/abs/1503.02531)   
+2. **DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter.** arxiv 2019. [paper](https://arxiv.org/abs/1910.01108)   
+3. **TinyBERT: Distilling BERT for Natural Language Understanding**. 2019. [paper](https://arxiv.org/abs/1909.10351)  
