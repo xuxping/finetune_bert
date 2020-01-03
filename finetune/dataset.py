@@ -78,6 +78,44 @@ class ChnSentiCorpDataset(Dataset):
         return [0, 1]
 
 
+class LcqmcDataset(Dataset):
+    """LCQMC Dataset."""
+
+    def get_train_datasets(self):
+        lines = self._read_dataset(os.path.join(self.data_dir, 'train.tsv'))
+        return self.preproccess(lines)
+
+    def get_dev_datasets(self):
+        lines = self._read_dataset(os.path.join(self.data_dir, 'dev.tsv'))
+        return self.preproccess(lines)
+
+    def get_test_datasets(self):
+        lines = self._read_dataset(os.path.join(self.data_dir, 'test.tsv'))
+        return self.preproccess(lines)
+
+    def get_labels(self):
+        return [0, 1]
+
+    def preproccess(self, lines):
+        token_ids, segment_ids, labels = [], [], []
+        for lidx, line in enumerate(lines):
+            if len(line) != 3:
+                print("err {}".format(line))
+                continue
+            token_id, segment_id, input_mask = self.tokenizer.encode(text_a=line[0], text_b=line[1],
+                                                                     max_seq_length=self.max_seq_len)
+            label = int(line[2])
+            token_ids.append(token_id)
+            segment_ids.append(segment_id)
+            labels.append(label)
+            if lidx < 1:
+                print("text", line)
+                print("token_id", token_id)
+                print("segment_id", segment_id)
+                print("input_mask", input_mask)
+        return self.get_data(token_ids, segment_ids, labels)
+
+
 class Sst2Dataset(Dataset):
     """GLUE SST-2 Dataset."""
 

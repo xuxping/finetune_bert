@@ -7,10 +7,8 @@
 
 
 ### 更新 
-2020(plan):  
-* **2020/01/30**: 完善中英文注释和代码文档   
-* **2020/01/20**: 增加NER，相似度等任务   
-* **2020/01/10**: 发布中文版本：bert->distillbert，进行模型蒸馏  
+2020:  
+* **2020/01/03**: 增加在[LCQMC](http://icrc.hitsz.edu.cn/info/1037/1146.htm)数据集上的句对分类示例  
 
 2019:  
 * **2019/12/28:** 初步实现distillbert，并成功加载官方模型权重，对一些变量名进行更新，修复bert实现中一个错误，增加sst-2任务  
@@ -23,8 +21,9 @@
 
 |model |dataset | dev acc | test acc | batch size | learing rate | train epoch |
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- |  
-|bert|chnsenticorp|94.00%|94.08%|32|3e-5|4|  
-|distillbert|sst-2|90.71%|90.38%|32|4e-5|4|  
+|bert|chnsenticorp|94.00|94.08|32|3e-5|4|  
+|bert|LCQMC|88.74|86.11|32|3e-5|4|  
+|distillbert|sst-2|90.71|90.38|32|4e-5|4|  
 
 **测试结果未精调，仅供效果实现参考**
 

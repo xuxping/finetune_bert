@@ -9,7 +9,7 @@ sys.path.append('../')
 import numpy as np
 import tensorflow as tf
 from sklearn.metrics import classification_report, confusion_matrix
-from finetune.dataset import ChnSentiCorpDataset, Sst2Dataset
+from finetune.dataset import ChnSentiCorpDataset, Sst2Dataset, LcqmcDataset
 import time
 
 from finetune import (BertConfig, BertTokenizer,
@@ -35,8 +35,10 @@ def set_random():
 
 TASK_NAMES = {
     'chnsenticorp': ChnSentiCorpDataset,
+    'lcqmc': LcqmcDataset,
     'sst-2': Sst2Dataset,
 }
+
 MODELS = {
     "bert": (BertConfig,
              BertTokenizer,
@@ -106,7 +108,7 @@ def train(opts):
 
 
 def test(opts):
-    tokenizer = MODELS[opts.model_name][0].from_pretrained(opts.pretrained_path)
+    tokenizer = MODELS[opts.model_name][1].from_pretrained(opts.pretrained_path)
     dataset = TASK_NAMES[opts.task_name](opts.data_dir, tokenizer, opts.max_seq_len)
     X_test, y_test = dataset.get_test_datasets()
     if not opts.use_token_type or opts.model_name == 'distillbert':
