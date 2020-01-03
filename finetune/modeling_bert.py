@@ -451,6 +451,52 @@ class BertForSequenceClassification(BertPretrained):
         self.model = tf.keras.Model(self.bert.model.input, output)
 
 
+class BertFoTokenClassification(BertPretrained):
+    # For Sequence Tag Task
+
+    def __init__(self, config, trainable=True, training=False, max_seq_len=None, **kwargs):
+        super(BertFoTokenClassification, self).__init__(config, trainable, training, max_seq_len, **kwargs)
+        self.bert = BertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
+        num_labels = int(kwargs.pop('num_labels', 2))
+        self.dropout = tf.keras.layers.Dropout(rate=config.hidden_dropout_prob, name='classifier-drop')
+
+        self.classifier = tf.keras.layers.Dense(units=num_labels,
+                                                activation='softmax',
+                                                kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                kernel_initializer=get_initializer(config.initializer_range),
+                                                name="classifier")
+
+    def build(self, **kwargs):
+        sequence_output = self.bert.get_sequence_output()
+        sequence_output = self.dropout(sequence_output)
+        logits = self.classifier(sequence_output)
+
+        self.model = tf.keras.Model(self.bert.model.input, logits)
+
+
+class BertForQuestionAnswering(BertPretrained):
+    # For Question Answering Task
+
+    def __init__(self, config, trainable=True, training=False, max_seq_len=None, **kwargs):
+        super(BertForQuestionAnswering, self).__init__(config, trainable, training, max_seq_len, **kwargs)
+        self.bert = BertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
+        num_labels = int(kwargs.pop('num_labels', 2))
+        self.qa_outputs = tf.keras.layers.Dense(units=num_labels,
+                                                activation='softmax',
+                                                kernel_regularizer=tf.keras.regularizers.l2(0.001),
+                                                kernel_initializer=get_initializer(config.initializer_range),
+                                                name="qa_outputs")
+
+    def build(self, **kwargs):
+        sequence_output = self.bert.get_sequence_output()
+        logits = self.qa_outputs(sequence_output)
+        start_logits, end_logits = tf.keras.layers.Lambda(lambda x: tf.split(x, 2, axis=-1))(logits)
+        start_logits = tf.keras.layers.Lambda(lambda x: tf.squeeze(x, axis=-1))(start_logits)
+        end_logits = tf.keras.layers.Lambda(lambda x: tf.squeeze(x, axis=-1))(end_logits)
+
+        self.model = tf.keras.Model(self.bert.model.input, [start_logits, end_logits])
+
+
 custom_objects = {
     'BertMultiHeadSelfAttention': BertMultiHeadSelfAttention,
     'LayerNormalization': LayerNormalization,
