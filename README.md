@@ -27,6 +27,13 @@
 
 **测试结果未精调，仅供效果实现参考**
 
+### 数据集
+|dataset | description |
+| ---- | ---- |  
+|chnsenticorp|中文情感z正负面分析语料，包含三类：旅馆、书籍、商品评论|  
+|LCQMC|中文句对相似度任务|  
+|sst-2|英文正负面情绪分类任务|  
+
 ### 如何使用  
 1、下载Bert中文预训练模型：[chinese_L-12_H-768_A-12.zip](https://storage.googleapis.com/bert_models/2018_11_03/chinese_L-12_H-768_A-12.zip)
 
