@@ -155,6 +155,9 @@ class FeedForward(tf.keras.layers.Layer):
         hidden_states = self.down_project(hidden_states)
         return hidden_states
 
+    def compute_output_shape(self, input_shape):
+        return input_shape[:-1] + (self.hidden_size,)
+
     def get_config(self):
         config = {
             'hidden_size': self.hidden_size,
