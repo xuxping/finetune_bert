@@ -1,5 +1,7 @@
 # -*- coding:utf-8 -*-
 
+__version__ = '0.1'
+
 # config
 from .configuration_bert import BertConfig, DistillBertConfig
 
