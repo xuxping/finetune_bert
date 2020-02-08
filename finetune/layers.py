@@ -1,7 +1,5 @@
 # -*- coding:utf-8 -*-
-# Date: 2019/12/26
-# Author: xuxiaoping01
-# Desc:
+
 import tensorflow as tf
 
 

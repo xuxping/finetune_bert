@@ -3,27 +3,24 @@ import argparse
 import codecs
 import os
 import random
-import sys
+import time
+from datetime import datetime
 
-sys.path.append('../')
 import numpy as np
 import tensorflow as tf
 from sklearn.metrics import classification_report, confusion_matrix
-from finetune.dataset import ChnSentiCorpDataset, Sst2Dataset, LcqmcDataset
-import time
 
 from finetune import (BertConfig, BertTokenizer,
                       BertForPretraining,
                       BertForSequenceClassification)
-
 from finetune import (DistillBertConfig,
                       DistillBertTokenizer,
                       DistillBertForPretraining,
                       DistillBertForSequenceClassification)
-from datetime import datetime
+from finetune.dataset import ChnSentiCorpDataset, Sst2Dataset, LcqmcDataset
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 def set_random():

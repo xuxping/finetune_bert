@@ -8,6 +8,7 @@
 
 ### 更新 
 2020:  
+* **2020/02/08**: 提供可安装的Python包   
 * **2020/01/03**: 增加在[LCQMC](http://icrc.hitsz.edu.cn/info/1037/1146.htm)数据集上的句对分类示例  
 
 2019:  
@@ -34,13 +35,23 @@
 |LCQMC|中文句对相似度任务|  
 |sst-2|英文正负面情绪分类任务|  
 
-### 如何使用  
+### 安装
+需要提前安装依赖包，参考requirement.txt
+
+```
+git clone https://github.com/mkavim/finetune_bert.git
+cd finetune_bert
+pip install .
+```
+
+### 如何使用
+
 1、下载Bert中文预训练模型：[chinese_L-12_H-768_A-12.zip](https://storage.googleapis.com/bert_models/2018_11_03/chinese_L-12_H-768_A-12.zip)
 
 2、finetune
-目前只支持分类任务，其它任务将有计划的支持   
+目前只支持分类任务，其它任务将有计划的支持，见`examples/`
 ```
-finetune_classifier.py --train  \
+python finetune_classifier.py --train  \
     --model_name bert \
     --task chnsenticorp \
     --pretrained_path=/xxx/chinese_L-12_H-768_A-12/ \
@@ -52,7 +63,7 @@ finetune_classifier.py --train  \
 
 3、test
 ```
-finetune_classifier.py --test  \
+python finetune_classifier.py --test  \
     --task chnsenticorp \
     --pretrained_path=/xxx/chinese_L-12_H-768_A-12/vocab.txt \
     --batch_size 32 \
