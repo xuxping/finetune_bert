@@ -163,3 +163,88 @@ def load_distillbert_model_weights_from_checkpoint(model,
         model.get_layer(name='MLM-Proba').set_weights([
             loader('vocab_projector/bias', prefix=prefix),
         ])
+
+
+def load_albert_model_weights_from_checkpoint(model,
+                                              config,
+                                              checkpoint_file,
+                                              training=False):
+    """Load trained official model from checkpoint.
+
+    :param model: Built keras model.
+    :param config: Loaded configuration file.
+    :param checkpoint_file: The path to the checkpoint files, should end with '.ckpt'.
+    :param training: If training, the whole model will be returned.
+                     Otherwise, the MLM and NSP parts will be ignored.
+    """
+    loader = checkpoint_loader(checkpoint_file)
+
+    model.get_layer(name='Embedding-Token').set_weights([
+        loader('bert/embeddings/word_embeddings'),
+    ])
+    model.get_layer(name='Embedding-Position').set_weights([
+        loader('bert/embeddings/position_embeddings')[:config.max_position_embeddings, :],
+    ])
+    model.get_layer(name='Embedding-Segment').set_weights([
+        loader('bert/embeddings/token_type_embeddings'),
+    ])
+    model.get_layer(name='Embedding-Norm').set_weights([
+        loader('bert/embeddings/LayerNorm/gamma'),
+        loader('bert/embeddings/LayerNorm/beta'),
+    ])
+
+    prefix = 'bert/encoder/transformer/group_0/inner_group_0/'
+    # 层参数共享，不需要循环
+    try:
+        model.get_layer(name='Encoder-MultiHeadSelfAttention')
+    except ValueError as e:
+        print("err Encoder-MultiHeadSelfAttention")
+        raise e
+    model.get_layer(name='Encoder-MultiHeadSelfAttention').set_weights([
+        loader(prefix + 'attention_1/self/query/kernel'),
+        loader(prefix + 'attention_1/self/query/bias'),
+        loader(prefix + 'attention_1/self/key/kernel'),
+        loader(prefix + 'attention_1/self/key/bias'),
+        loader(prefix + 'attention_1/self/value/kernel'),
+        loader(prefix + 'attention_1/self/value/bias'),
+        loader(prefix + 'attention_1/output/dense/kernel'),
+        loader(prefix + 'attention_1/output/dense/bias'),
+    ])
+    model.get_layer(name='Encoder-MultiHeadSelfAttention-Norm').set_weights([
+        loader(prefix + 'LayerNorm/gamma'),
+        loader(prefix + 'LayerNorm/beta'),
+    ])
+    model.get_layer(name='Encoder-FeedForward').set_weights([
+        loader(prefix + 'ffn_1/intermediate/dense/kernel'),
+        loader(prefix + 'ffn_1/intermediate/dense/bias'),
+        loader(prefix + 'ffn_1/intermediate/output/dense/kernel'),
+        loader(prefix + 'ffn_1/intermediate/output/dense/bias'),
+    ])
+    model.get_layer(name='Encoder-%d-FeedForward-Norm').set_weights([
+        loader(prefix + 'LayerNorm/gamma'),
+        loader(prefix + 'LayerNorm/beta'),
+    ])
+    model.get_layer(name='Pooler-Dense').set_weights([
+        loader('bert/pooler/dense/kernel'),
+        loader('bert/pooler/dense/bias'),
+    ])
+
+    if training:
+        model.get_layer(name='MLM-Dense').set_weights([
+            loader('cls/predictions/transform/dense/kernel'),
+            loader('cls/predictions/transform/dense/bias'),
+        ])
+        model.get_layer(name='MLM-Norm').set_weights([
+            loader('cls/predictions/transform/LayerNorm/gamma'),
+            loader('cls/predictions/transform/LayerNorm/beta'),
+        ])
+        model.get_layer(name='MLM-Bias').set_weights([
+            loader('cls/predictions/output_bias'),
+        ])
+        model.get_layer(name='NSP').set_weights([
+            np.transpose(loader('cls/seq_relationship/output_weights')),
+            loader('cls/seq_relationship/output_bias'),
+        ])
+        model.get_layer(name='SOP-Bias').set_weights([
+            loader('cls/seq_relationship/output_bias'),
+        ])

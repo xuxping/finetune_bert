@@ -1,9 +1,10 @@
 #! -*- coding: utf-8 -*-
-# BERT实现参考:
-# https://github.com/google-research/bert
-# https://github.com/huggingface/transformers
-# https://github.com/bojone/bert4keras
-
+"""
+ALBert:
+1、paper:https://arxiv.org/abs/1909.11942
+2、code:https://github.com/google-research/ALBERT
+3、pretrain file:https://storage.googleapis.com/albert_models/albert_base_zh.tar.gz
+"""
 
 import copy
 import os
@@ -11,10 +12,10 @@ import os
 import tensorflow as tf
 
 from finetune.activations import ACT2FN
-from finetune.configuration_bert import BertConfig
+from finetune.configuration_bert import ALBertConfig
 from finetune.layers import get_initializer, shape_list, create_token_type_ids, create_position_ids, get_input_mask, \
     BiasAdd
-from finetune.loader import load_bert_model_weights_from_checkpoint
+from finetune.loader import load_albert_model_weights_from_checkpoint
 
 try:
     LayerNormalization = tf.keras.layers.LayerNormalization
@@ -22,11 +23,11 @@ except AttributeError:
     from finetune.normalization import LayerNormalization
 
 # pretrained file
-BERT_CONFIG_NAME = 'config.json'
-BERT_CHECKPOINT_NAME = 'bert_model.ckpt'
+ALBERT_CONFIG_NAME = 'config.json'
+ALBERT_CHECKPOINT_NAME = 'model.ckpt'
 
 
-class BertMultiHeadSelfAttention(tf.keras.layers.Layer):
+class ALBertMultiHeadSelfAttention(tf.keras.layers.Layer):
     """Bert Multi-Head Self Attention.
     See https://github.com/huggingface/transformers/blob/master/transformers/modeling_tf_bert.py#L188-L257
     """
@@ -37,7 +38,7 @@ class BertMultiHeadSelfAttention(tf.keras.layers.Layer):
                  attention_probs_dropout_prob,
                  initializer_range,
                  **kwargs):
-        super(BertMultiHeadSelfAttention, self).__init__(**kwargs)
+        super(ALBertMultiHeadSelfAttention, self).__init__(**kwargs)
         if hidden_size % num_attention_heads != 0:
             raise ValueError(
                 "The hidden size (%d) is not a multiple of the number of attention "
@@ -50,7 +51,7 @@ class BertMultiHeadSelfAttention(tf.keras.layers.Layer):
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
     def build(self, input_shape):
-        super(BertMultiHeadSelfAttention, self).build(input_shape)
+        super(ALBertMultiHeadSelfAttention, self).build(input_shape)
         self.query = tf.keras.layers.Dense(self.all_head_size,
                                            kernel_initializer=get_initializer(self.initializer_range),
                                            name='query')
@@ -122,7 +123,7 @@ class BertMultiHeadSelfAttention(tf.keras.layers.Layer):
             'attention_probs_dropout_prob': self.attention_probs_dropout_prob,
             'initializer_range': self.initializer_range
         }
-        base_config = super(BertMultiHeadSelfAttention, self).get_config()
+        base_config = super(ALBertMultiHeadSelfAttention, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -169,7 +170,7 @@ class FeedForward(tf.keras.layers.Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class BertPretrained(object):
+class ALBertPretrained(object):
     def __init__(self, config, *inputs, **kwargs):
         self.model = None
 
@@ -181,43 +182,43 @@ class BertPretrained(object):
                         max_seq_len=None, **kwargs):
         config = kwargs.pop('config', None)
         if config is None:
-            config_file = os.path.join(pretrained_path, BERT_CONFIG_NAME)
-            config = BertConfig.from_pretrained(config_file)
+            config_file = os.path.join(pretrained_path, ALBERT_CONFIG_NAME)
+            config = ALBertConfig.from_pretrained(config_file)
         bert = cls(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
         bert.build()
-        checkpoint_file = os.path.join(pretrained_path, BERT_CHECKPOINT_NAME)
-        load_bert_model_weights_from_checkpoint(bert.model, config, checkpoint_file, training=training)
+        checkpoint_file = os.path.join(pretrained_path, ALBERT_CHECKPOINT_NAME)
+        load_albert_model_weights_from_checkpoint(bert.model, config, checkpoint_file, training=training)
         return bert
 
 
-class BertModel(BertPretrained):
+class ALBertModel(ALBertPretrained):
     """构建跟Bert一样结构的Transformer-based模型
     """
 
     def __init__(self, config, trainable=True, training=False, max_seq_len=None, **kwargs):
         """
-        Args:
-            config: bert config
-            trainable:  trainable可以是一个包含字符串的列表，如果某一层的前缀出现在列表中，则当前层是可训练的。
-            training:  training表示是否在训练BERT语言模型，当为True时完整的BERT模型会被返回，当为False时没有MLM和NSP相关计算的结构,
-                在training为True的情况下，输入包含三项：token下标、segment下标、被masked的词的模版(尚未完全支持)
-            kwargs:
-                use_token_type: 是否需要强制输入use_token_type, 兼容需求, 在使用句对分类的时候需要输入
+            trainable: 表示模型参数是否需要更新
+            training: 是否是预训练模型
         """
-        super(BertModel, self).__init__(config, trainable, training, max_seq_len, **kwargs)
+        super(ALBertModel, self).__init__(config, trainable, training, max_seq_len, **kwargs)
         config = copy.deepcopy(config)
-        if not isinstance(config, BertConfig):
+        if not isinstance(config, ALBertConfig):
             raise ValueError("config must be instance of BertConfig")
 
         self.trainable = trainable
         self.training = training
+        if not training:
+            config.hidden_dropout_prob = 0.0
+            config.attention_probs_dropout_prob = 0.0
 
         self.vocab_size = config.vocab_size
         self.max_position_embeddings = config.max_position_embeddings
         self.hidden_size = config.hidden_size
         self.num_hidden_layers = config.num_hidden_layers
+        self.num_hidden_groups = config.num_hidden_layers
         self.num_attention_heads = config.num_attention_heads
         self.intermediate_size = config.intermediate_size
+        self.inner_group_num = config.inner_group_num
         self.hidden_dropout_prob = config.hidden_dropout_prob
         self.attention_probs_dropout_prob = config.attention_probs_dropout_prob
         self.initializer_range = config.initializer_range or 0.02
@@ -308,8 +309,7 @@ class BertModel(BertPretrained):
         return tf.keras.layers.Lambda(lambda x: reshape2(x))(logits)
 
     def build(self):
-        """Bert模型构建函数"""
-        # 设置输入
+        """ALBert模型构建函数"""
         input_ids = tf.keras.layers.Input(shape=(self.max_seq_len,), name='Input-Token')
         model_inputs = [input_ids]
         if self.use_token_type:
@@ -319,25 +319,35 @@ class BertModel(BertPretrained):
             token_type_ids = tf.keras.layers.Lambda(lambda x: create_token_type_ids(x),
                                                     name='Input-Segment')(input_ids)
 
+        # attention_mask和bert中的input_mask一致
+        attention_mask = tf.keras.layers.Lambda(lambda x: get_input_mask(x), name="Attention-Mask")(input_ids)
         embeddings = self._embeddings(input_ids, token_type_ids)
 
+        # embedding 因式分解
+        if self.embedding_size != self.hidden_size:
+            embeddings = tf.keras.layers.Dense(self.hidden_size,
+                                               kernel_initializer=get_initializer(self.initializer_range),
+                                               name="Factor-Dense")(embeddings)
+
         # 主要Transformer Encoder部分
-        attention_mask = tf.keras.layers.Lambda(lambda x: get_input_mask(x), name="Attention-Mask")(input_ids)
         self.all_layer_outputs = []
 
         prev_output = embeddings
+        layers = None
         for i in range(self.num_hidden_layers):
-            attention_name = 'Encoder-MultiHeadSelfAttention'
-            feed_forward_name = 'Encoder-FeedForward'
-            encoder_output = self.transformer_block(
+            attention_name = 'Encoder-%d-MultiHeadSelfAttention' % (i + 1)
+            feed_forward_name = 'Encoder-%d-FeedForward' % (i + 1)
+            encoder_output, layers = self.transformer_block(
                 inputs=prev_output,
                 attention_mask=attention_mask,
                 attention_name=attention_name,
-                feed_forward_name=feed_forward_name)
+                feed_forward_name=feed_forward_name,
+                layers=layers  # 层复用，tensorflow代码中采用的variable_scope来复用变量，keras直接复用就行
+            )
             self.all_layer_outputs.append(encoder_output)
             prev_output = encoder_output
 
-        # pooler，取[CLS]的输出做一次线性变换，用于句子或者句队的分类
+        # pooler，取[CLS]的输出做一次线性变换，用于句子或者句对的分类
         sequence_output = self.all_layer_outputs[-1]
         first_token_tensor = tf.keras.layers.Lambda(lambda x: x[:, 0], name='Pooler')(sequence_output)
         self.pooler_output = tf.keras.layers.Dense(self.hidden_size,
@@ -353,29 +363,30 @@ class BertModel(BertPretrained):
             layer.trainable = self._trainable(layer)
 
     def transformer_block(self, inputs, attention_mask=None, attention_name='attention',
-                          feed_forward_name='feed-forward'):
+                          feed_forward_name='feed-forward', layers=None):
         """构建单个Transformer Block"""
         x = inputs
-        layers = [
-            BertMultiHeadSelfAttention(hidden_size=self.hidden_size,
-                                       num_attention_heads=self.num_attention_heads,
-                                       initializer_range=self.initializer_range,
-                                       attention_probs_dropout_prob=self.attention_probs_dropout_prob,
-                                       name=attention_name),
-            tf.keras.layers.Dropout(rate=self.hidden_dropout_prob,
-                                    name='%s-Dropout' % attention_name),
-            tf.keras.layers.Add(name='%s-Add' % attention_name),
-            LayerNormalization(epsilon=self.layer_norm_eps, name='%s-Norm' % attention_name),
-            FeedForward(intermediate_size=self.intermediate_size,
-                        hidden_size=self.hidden_size,
-                        hidden_act=self.hidden_act,
-                        initializer_range=self.initializer_range,
-                        name=feed_forward_name),
-            tf.keras.layers.Dropout(rate=self.hidden_dropout_prob,
-                                    name='%s-Dropout' % feed_forward_name),
-            tf.keras.layers.Add(name='%s-Add' % feed_forward_name),
-            LayerNormalization(epsilon=self.layer_norm_eps, name='%s-Norm' % feed_forward_name),
-        ]
+        if layers is None:
+            layers = [
+                ALBertMultiHeadSelfAttention(hidden_size=self.hidden_size,
+                                             num_attention_heads=self.num_attention_heads,
+                                             initializer_range=self.initializer_range,
+                                             attention_probs_dropout_prob=self.attention_probs_dropout_prob,
+                                             name=attention_name),
+                tf.keras.layers.Dropout(rate=self.hidden_dropout_prob,
+                                        name='%s-Dropout' % attention_name),
+                tf.keras.layers.Add(name='%s-Add' % attention_name),
+                LayerNormalization(epsilon=self.layer_norm_eps, name='%s-Norm' % attention_name),
+                FeedForward(intermediate_size=self.intermediate_size,
+                            hidden_size=self.hidden_size,
+                            hidden_act=self.hidden_act,
+                            initializer_range=self.initializer_range,
+                            name=feed_forward_name),
+                tf.keras.layers.Dropout(rate=self.hidden_dropout_prob,
+                                        name='%s-Dropout' % feed_forward_name),
+                tf.keras.layers.Add(name='%s-Add' % feed_forward_name),
+                LayerNormalization(epsilon=self.layer_norm_eps, name='%s-Norm' % feed_forward_name),
+            ]
         # Self Attention
         xi = x
         x = layers[0]([x, attention_mask])
@@ -393,15 +404,15 @@ class BertModel(BertPretrained):
         # Add & Norm
         x = layers[6]([xi, x])
         x = layers[7](x)
-        return x
+        return x, layers
 
 
-class BertForPretraining(BertPretrained):
+class ALBertForPretraining(ALBertPretrained):
     """用于对Bert进行预训练"""
 
     def __init__(self, config, trainable=True, training=True, max_seq_len=None, **kwargs):
-        super(BertForPretraining, self).__init__(config, trainable, training, max_seq_len, **kwargs)
-        self.bert = BertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
+        super(ALBertForPretraining, self).__init__(config, trainable, training, max_seq_len, **kwargs)
+        self.bert = ALBertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
         self.input_embeddings = self.bert.get_token_embeddings()
 
         # NSP
@@ -414,30 +425,32 @@ class BertForPretraining(BertPretrained):
                                                name='MLM-Dense')
         self.transform_act_fn = ACT2FN[config.hidden_act]
         self.LayerNorm = LayerNormalization(epsilon=config.layer_norm_eps, name='MLM-Norm')
-        self.bais_add = BiasAdd(initializer_range=config.initializer_range, name='MLM-Proba')
+        self.mlm_bais_add = BiasAdd(initializer_range=config.initializer_range, name='MLM-Bias')
+        self.sop_bais_add = BiasAdd(initializer_range=config.initializer_range, name='SOP-Bias')
 
     def build(self):
         sequence_out, pooler_out = self.bert.model.output
+
         # MLM
         hidden_states = self.mlm_dense(sequence_out)
         hidden_states = self.transform_act_fn(hidden_states)
         hidden_states = self.LayerNorm(hidden_states)
         # [batch_size, length, self.vocab_size]
         hidden_states = self.bert.embedding_similarity(hidden_states)
+        prediction_scores = self.mlm_bais_add(hidden_states)
 
-        prediction_scores = self.bais_add(hidden_states)
-
-        # NSP
+        # SOP: sentence order predict
         seq_relationship_score = self.seq_relationship(pooler_out)
+        self.sop_bais_add(seq_relationship_score)
         output = [seq_relationship_score, prediction_scores]
         self.model = tf.keras.Model(self.bert.model.input, output)
 
 
-class BertForSequenceClassification(BertPretrained):
+class ALBertForSequenceClassification(ALBertPretrained):
     # 句子或者句对分类(use_token_type)
     def __init__(self, config, trainable=True, training=False, max_seq_len=None, **kwargs):
-        super(BertForSequenceClassification, self).__init__(config, trainable, training, max_seq_len, **kwargs)
-        self.bert = BertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
+        super(ALBertForSequenceClassification, self).__init__(config, trainable, training, max_seq_len, **kwargs)
+        self.bert = ALBertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
         num_labels = int(kwargs.pop('num_labels', 2))
         self.dropout = tf.keras.layers.Dropout(rate=config.hidden_dropout_prob, name='classifier-drop')
         self.classifier = tf.keras.layers.Dense(units=num_labels,
@@ -454,12 +467,12 @@ class BertForSequenceClassification(BertPretrained):
         self.model = tf.keras.Model(self.bert.model.input, output)
 
 
-class BertFoTokenClassification(BertPretrained):
+class ALBertFoTokenClassification(ALBertPretrained):
     # For Sequence Tag Task
 
     def __init__(self, config, trainable=True, training=False, max_seq_len=None, **kwargs):
-        super(BertFoTokenClassification, self).__init__(config, trainable, training, max_seq_len, **kwargs)
-        self.bert = BertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
+        super(ALBertFoTokenClassification, self).__init__(config, trainable, training, max_seq_len, **kwargs)
+        self.bert = ALBertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
         num_labels = int(kwargs.pop('num_labels', 2))
         self.dropout = tf.keras.layers.Dropout(rate=config.hidden_dropout_prob, name='classifier-drop')
 
@@ -477,12 +490,12 @@ class BertFoTokenClassification(BertPretrained):
         self.model = tf.keras.Model(self.bert.model.input, logits)
 
 
-class BertForQuestionAnswering(BertPretrained):
+class ALBertForQuestionAnswering(ALBertPretrained):
     # For Question Answering Task
 
     def __init__(self, config, trainable=True, training=False, max_seq_len=None, **kwargs):
-        super(BertForQuestionAnswering, self).__init__(config, trainable, training, max_seq_len, **kwargs)
-        self.bert = BertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
+        super(ALBertForQuestionAnswering, self).__init__(config, trainable, training, max_seq_len, **kwargs)
+        self.bert = ALBertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
         num_labels = int(kwargs.pop('num_labels', 2))
         self.qa_outputs = tf.keras.layers.Dense(units=num_labels,
                                                 activation='softmax',
@@ -501,7 +514,7 @@ class BertForQuestionAnswering(BertPretrained):
 
 
 custom_objects = {
-    'BertMultiHeadSelfAttention': BertMultiHeadSelfAttention,
+    'BertMultiHeadSelfAttention': ALBertMultiHeadSelfAttention,
     'LayerNormalization': LayerNormalization,
     'FeedForward': FeedForward,
 }
