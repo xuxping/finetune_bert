@@ -326,8 +326,8 @@ class BertModel(BertPretrained):
 
         prev_output = embeddings
         for i in range(self.num_hidden_layers):
-            attention_name = 'Encoder-%d-MultiHeadSelfAttention' % (i + 1)
-            feed_forward_name = 'Encoder-%d-FeedForward' % (i + 1)
+            attention_name = 'Encoder-MultiHeadSelfAttention'
+            feed_forward_name = 'Encoder-FeedForward'
             encoder_output = self.transformer_block(
                 inputs=prev_output,
                 attention_mask=attention_mask,

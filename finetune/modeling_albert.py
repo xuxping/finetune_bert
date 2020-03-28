@@ -187,7 +187,8 @@ class ALBertPretrained(object):
         bert = cls(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
         bert.build()
         checkpoint_file = os.path.join(pretrained_path, ALBERT_CHECKPOINT_NAME)
-        # load_albert_model_weights_from_checkpoint(bert.model, config, checkpoint_file, training=training)
+
+        load_albert_model_weights_from_checkpoint(bert.model, config, checkpoint_file, training=training)
         return bert
 
 
@@ -305,6 +306,7 @@ class ALBertModel(ALBertPretrained):
 
         inputs = tf.keras.layers.Lambda(lambda x: reshape1(x))(inputs)
         logits = tf.keras.layers.Lambda(lambda x: matmul(x))(inputs)
+
         return tf.keras.layers.Lambda(lambda x: reshape2(x))(logits)
 
     def build(self):
@@ -413,6 +415,7 @@ class ALBertForPretraining(ALBertPretrained):
         super(ALBertForPretraining, self).__init__(config, trainable, training, max_seq_len, **kwargs)
         self.bert = ALBertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
         self.input_embeddings = self.bert.get_token_embeddings()
+
         # NSP
         self.seq_relationship = tf.keras.layers.Dense(2,
                                                       kernel_initializer=get_initializer(config.initializer_range),
@@ -434,6 +437,7 @@ class ALBertForPretraining(ALBertPretrained):
         hidden_states = self.LayerNorm(hidden_states)
         # [batch_size, length, self.vocab_size]
         hidden_states = self.bert.embedding_similarity(hidden_states)
+
         prediction_scores = self.bais_add(hidden_states)
 
         # SOP: sentence order predict
