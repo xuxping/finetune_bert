@@ -238,13 +238,10 @@ def load_albert_model_weights_from_checkpoint(model,
             loader('cls/predictions/transform/LayerNorm/gamma'),
             loader('cls/predictions/transform/LayerNorm/beta'),
         ])
-        model.get_layer(name='MLM-Bias').set_weights([
+        model.get_layer(name='MLM-Proba').set_weights([
             loader('cls/predictions/output_bias'),
         ])
         model.get_layer(name='NSP').set_weights([
             np.transpose(loader('cls/seq_relationship/output_weights')),
-            loader('cls/seq_relationship/output_bias'),
-        ])
-        model.get_layer(name='SOP-Bias').set_weights([
             loader('cls/seq_relationship/output_bias'),
         ])

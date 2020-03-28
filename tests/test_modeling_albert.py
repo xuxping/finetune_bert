@@ -43,7 +43,7 @@ class TestBertModel(unittest.TestCase):
     def test_for_sequence_classification_model(self):
         # bert = BertForPretraining(self.config, training=True, trainable=True)
         bert = ALBertForSequenceClassification.from_pretrained(pretrained_path=ALBERT_PRETRAINED_PATH,
-                                                               training=True,
+                                                               training=False,
                                                                num_labels=2)
 
         bert.model.summary()

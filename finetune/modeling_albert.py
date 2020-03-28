@@ -187,7 +187,7 @@ class ALBertPretrained(object):
         bert = cls(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
         bert.build()
         checkpoint_file = os.path.join(pretrained_path, ALBERT_CHECKPOINT_NAME)
-        load_albert_model_weights_from_checkpoint(bert.model, config, checkpoint_file, training=training)
+        # load_albert_model_weights_from_checkpoint(bert.model, config, checkpoint_file, training=training)
         return bert
 
 
@@ -305,7 +305,6 @@ class ALBertModel(ALBertPretrained):
 
         inputs = tf.keras.layers.Lambda(lambda x: reshape1(x))(inputs)
         logits = tf.keras.layers.Lambda(lambda x: matmul(x))(inputs)
-
         return tf.keras.layers.Lambda(lambda x: reshape2(x))(logits)
 
     def build(self):
@@ -335,8 +334,8 @@ class ALBertModel(ALBertPretrained):
         prev_output = embeddings
         layers = None
         for i in range(self.num_hidden_layers):
-            attention_name = 'Encoder-%d-MultiHeadSelfAttention' % (i + 1)
-            feed_forward_name = 'Encoder-%d-FeedForward' % (i + 1)
+            attention_name = 'Encoder-MultiHeadSelfAttention'
+            feed_forward_name = 'Encoder-FeedForward'
             encoder_output, layers = self.transformer_block(
                 inputs=prev_output,
                 attention_mask=attention_mask,
@@ -356,7 +355,7 @@ class ALBertModel(ALBertPretrained):
                                                    name="Pooler-Dense")(first_token_tensor)
 
         # sequence_output, pooler_output
-        outputs = [self.all_layer_outputs[-1], self.pooler_output]
+        outputs = [sequence_output, self.pooler_output]
 
         self.model = tf.keras.Model(model_inputs, outputs)
         for layer in self.model.layers:
@@ -408,13 +407,12 @@ class ALBertModel(ALBertPretrained):
 
 
 class ALBertForPretraining(ALBertPretrained):
-    """用于对Bert进行预训练"""
+    """用于对ALBert进行预训练"""
 
     def __init__(self, config, trainable=True, training=True, max_seq_len=None, **kwargs):
         super(ALBertForPretraining, self).__init__(config, trainable, training, max_seq_len, **kwargs)
         self.bert = ALBertModel(config, trainable=trainable, training=training, max_seq_len=max_seq_len, **kwargs)
         self.input_embeddings = self.bert.get_token_embeddings()
-
         # NSP
         self.seq_relationship = tf.keras.layers.Dense(2,
                                                       kernel_initializer=get_initializer(config.initializer_range),
@@ -425,8 +423,7 @@ class ALBertForPretraining(ALBertPretrained):
                                                name='MLM-Dense')
         self.transform_act_fn = ACT2FN[config.hidden_act]
         self.LayerNorm = LayerNormalization(epsilon=config.layer_norm_eps, name='MLM-Norm')
-        self.mlm_bais_add = BiasAdd(initializer_range=config.initializer_range, name='MLM-Bias')
-        self.sop_bais_add = BiasAdd(initializer_range=config.initializer_range, name='SOP-Bias')
+        self.bais_add = BiasAdd(initializer_range=config.initializer_range, name='MLM-Proba')
 
     def build(self):
         sequence_out, pooler_out = self.bert.model.output
@@ -437,12 +434,11 @@ class ALBertForPretraining(ALBertPretrained):
         hidden_states = self.LayerNorm(hidden_states)
         # [batch_size, length, self.vocab_size]
         hidden_states = self.bert.embedding_similarity(hidden_states)
-        prediction_scores = self.mlm_bais_add(hidden_states)
+        prediction_scores = self.bais_add(hidden_states)
 
         # SOP: sentence order predict
-        seq_relationship_score = self.seq_relationship(pooler_out)
-        self.sop_bais_add(seq_relationship_score)
-        output = [seq_relationship_score, prediction_scores]
+        seq_relationship_scores = self.seq_relationship(pooler_out)
+        output = [seq_relationship_scores, prediction_scores]
         self.model = tf.keras.Model(self.bert.model.input, output)
 
 
@@ -514,7 +510,7 @@ class ALBertForQuestionAnswering(ALBertPretrained):
 
 
 custom_objects = {
-    'BertMultiHeadSelfAttention': ALBertMultiHeadSelfAttention,
+    'ALBertMultiHeadSelfAttention': ALBertMultiHeadSelfAttention,
     'LayerNormalization': LayerNormalization,
     'FeedForward': FeedForward,
 }

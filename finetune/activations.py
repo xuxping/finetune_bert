@@ -29,6 +29,6 @@ def swish(x):
 
 
 ACT2FN = {"gelu": tf.keras.layers.Activation(gelu),
-          "relu": tf.keras.activations.relu,
+          "relu": tf.keras.layers.Activation('relu'),
           "swish": tf.keras.layers.Activation(swish),
           "gelu_new": tf.keras.layers.Activation(gelu_new)}
