@@ -216,14 +216,14 @@ class ALBertModel(ALBertPretrained):
         self.max_position_embeddings = config.max_position_embeddings
         self.hidden_size = config.hidden_size
         self.num_hidden_layers = config.num_hidden_layers
-        self.num_hidden_groups = config.num_hidden_layers
+        self.num_hidden_groups = config.num_hidden_groups
         self.num_attention_heads = config.num_attention_heads
         self.intermediate_size = config.intermediate_size
         self.inner_group_num = config.inner_group_num
         self.hidden_dropout_prob = config.hidden_dropout_prob
         self.attention_probs_dropout_prob = config.attention_probs_dropout_prob
         self.initializer_range = config.initializer_range or 0.02
-        self.embedding_size = config.hidden_size
+        self.embedding_size = config.embedding_size
         self.hidden_act = config.hidden_act
         self.type_vocab_size = config.type_vocab_size
         self.layer_norm_eps = config.layer_norm_eps
