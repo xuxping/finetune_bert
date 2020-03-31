@@ -11,6 +11,7 @@ Welcome to finetune_bert's documentation!
    :caption: Contents:
 
    quickstart
+   resources
 
 
 Indices and tables
