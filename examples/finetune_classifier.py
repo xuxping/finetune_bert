@@ -3,9 +3,10 @@ import argparse
 import codecs
 import os
 import random
+import sys
 import time
 from datetime import datetime
-import sys
+
 sys.path.append('../')
 
 import numpy as np
@@ -47,9 +48,9 @@ MODELS = {
              BertForPretraining,
              BertForSequenceClassification),
     "albert": (ALBertConfig,
-             ALBertTokenizer,
-             ALBertForPretraining,
-             ALBertForSequenceClassification),
+               ALBertTokenizer,
+               ALBertForPretraining,
+               ALBertForSequenceClassification),
     'distillbert': (
         DistillBertConfig,
         DistillBertTokenizer,
@@ -163,7 +164,7 @@ if __name__ == '__main__':
 
     opts = parser.parse_args()
     assert opts.task_name in TASK_NAMES
-
+    print(opts.__dict__)
     set_random()
     if opts.train:
         train(opts)
