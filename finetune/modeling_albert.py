@@ -334,15 +334,14 @@ class ALBertModel(ALBertPretrained):
         self.all_layer_outputs = []
 
         prev_output = embeddings
-        layers = None
+        attention_name = 'Encoder-MultiHeadSelfAttention'
+        feed_forward_name = 'Encoder-FeedForward'
+        layers = self.main_layer(attention_name, feed_forward_name)
+
         for i in range(self.num_hidden_layers):
-            attention_name = 'Encoder-MultiHeadSelfAttention'
-            feed_forward_name = 'Encoder-FeedForward'
-            encoder_output, layers = self.transformer_block(
+            encoder_output = self.transformer_block(
                 inputs=prev_output,
                 attention_mask=attention_mask,
-                attention_name=attention_name,
-                feed_forward_name=feed_forward_name,
                 layers=layers  # 层复用，tensorflow代码中采用的variable_scope来复用变量，keras直接复用就行
             )
             self.all_layer_outputs.append(encoder_output)
@@ -363,31 +362,33 @@ class ALBertModel(ALBertPretrained):
         for layer in self.model.layers:
             layer.trainable = self._trainable(layer)
 
-    def transformer_block(self, inputs, attention_mask=None, attention_name='attention',
-                          feed_forward_name='feed-forward', layers=None):
+    def main_layer(self, attention_name='attention', feed_forward_name='feed-forward'):
+        layers = [
+            ALBertMultiHeadSelfAttention(hidden_size=self.hidden_size,
+                                         num_attention_heads=self.num_attention_heads,
+                                         initializer_range=self.initializer_range,
+                                         attention_probs_dropout_prob=self.attention_probs_dropout_prob,
+                                         name=attention_name),
+            tf.keras.layers.Dropout(rate=self.hidden_dropout_prob,
+                                    name='%s-Dropout' % attention_name),
+            tf.keras.layers.Add(name='%s-Add' % attention_name),
+            LayerNormalization(epsilon=self.layer_norm_eps, name='%s-Norm' % attention_name),
+            FeedForward(intermediate_size=self.intermediate_size,
+                        hidden_size=self.hidden_size,
+                        hidden_act=self.hidden_act,
+                        initializer_range=self.initializer_range,
+                        name=feed_forward_name),
+            tf.keras.layers.Dropout(rate=self.hidden_dropout_prob,
+                                    name='%s-Dropout' % feed_forward_name),
+            tf.keras.layers.Add(name='%s-Add' % feed_forward_name),
+            LayerNormalization(epsilon=self.layer_norm_eps, name='%s-Norm' % feed_forward_name),
+        ]
+        return layers
+
+    def transformer_block(self, inputs, attention_mask=None, layers=None):
         """构建单个Transformer Block"""
         x = inputs
-        if layers is None:
-            layers = [
-                ALBertMultiHeadSelfAttention(hidden_size=self.hidden_size,
-                                             num_attention_heads=self.num_attention_heads,
-                                             initializer_range=self.initializer_range,
-                                             attention_probs_dropout_prob=self.attention_probs_dropout_prob,
-                                             name=attention_name),
-                tf.keras.layers.Dropout(rate=self.hidden_dropout_prob,
-                                        name='%s-Dropout' % attention_name),
-                tf.keras.layers.Add(name='%s-Add' % attention_name),
-                LayerNormalization(epsilon=self.layer_norm_eps, name='%s-Norm' % attention_name),
-                FeedForward(intermediate_size=self.intermediate_size,
-                            hidden_size=self.hidden_size,
-                            hidden_act=self.hidden_act,
-                            initializer_range=self.initializer_range,
-                            name=feed_forward_name),
-                tf.keras.layers.Dropout(rate=self.hidden_dropout_prob,
-                                        name='%s-Dropout' % feed_forward_name),
-                tf.keras.layers.Add(name='%s-Add' % feed_forward_name),
-                LayerNormalization(epsilon=self.layer_norm_eps, name='%s-Norm' % feed_forward_name),
-            ]
+
         # Self Attention
         xi = x
         x = layers[0]([x, attention_mask])
@@ -405,7 +406,7 @@ class ALBertModel(ALBertPretrained):
         # Add & Norm
         x = layers[6]([xi, x])
         x = layers[7](x)
-        return x, layers
+        return x
 
 
 class ALBertForPretraining(ALBertPretrained):
