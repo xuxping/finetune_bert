@@ -5,6 +5,8 @@ import os
 import random
 import time
 from datetime import datetime
+import sys
+sys.path.append('../')
 
 import numpy as np
 import tensorflow as tf
@@ -13,6 +15,9 @@ from sklearn.metrics import classification_report, confusion_matrix
 from finetune import (BertConfig, BertTokenizer,
                       BertForPretraining,
                       BertForSequenceClassification)
+from finetune import (ALBertConfig, ALBertTokenizer,
+                      ALBertForPretraining,
+                      ALBertForSequenceClassification)
 from finetune import (DistillBertConfig,
                       DistillBertTokenizer,
                       DistillBertForPretraining,
@@ -41,6 +46,10 @@ MODELS = {
              BertTokenizer,
              BertForPretraining,
              BertForSequenceClassification),
+    "albert": (ALBertConfig,
+             ALBertTokenizer,
+             ALBertForPretraining,
+             ALBertForSequenceClassification),
     'distillbert': (
         DistillBertConfig,
         DistillBertTokenizer,
