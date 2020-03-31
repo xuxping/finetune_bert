@@ -220,7 +220,7 @@ def load_albert_model_weights_from_checkpoint(model,
         loader(prefix + 'ffn_1/intermediate/output/dense/kernel'),
         loader(prefix + 'ffn_1/intermediate/output/dense/bias'),
     ])
-    model.get_layer(name='Encoder-%d-FeedForward-Norm').set_weights([
+    model.get_layer(name='Encoder-FeedForward-Norm').set_weights([
         loader(prefix + 'LayerNorm/gamma'),
         loader(prefix + 'LayerNorm/beta'),
     ])
