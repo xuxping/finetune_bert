@@ -1,13 +1,15 @@
 # -*- coding:utf-8 -*-
 
+import os
+
+import h5py
 import numpy as np
 import tensorflow as tf
-import h5py
-import os
 
 
 def checkpoint_loader(checkpoint_file):
     def _loader(name):
+        print("loader " + name)
         return tf.train.load_variable(checkpoint_file, name)
 
     return _loader
@@ -193,6 +195,12 @@ def load_albert_model_weights_from_checkpoint(model,
         loader('bert/embeddings/LayerNorm/beta'),
     ])
 
+    if config.embedding_size != config.hidden_size:
+        model.get_layer(name='Factor-Dense').set_weights([
+            loader('bert/encoder/embedding_hidden_mapping_in/kernel'),
+            loader('bert/encoder/embedding_hidden_mapping_in/bias'),
+        ])
+
     prefix = 'bert/encoder/transformer/group_0/inner_group_0/'
     # 层参数共享，不需要循环
     try:
@@ -221,8 +229,8 @@ def load_albert_model_weights_from_checkpoint(model,
         loader(prefix + 'ffn_1/intermediate/output/dense/bias'),
     ])
     model.get_layer(name='Encoder-FeedForward-Norm').set_weights([
-        loader(prefix + 'LayerNorm/gamma'),
-        loader(prefix + 'LayerNorm/beta'),
+        loader(prefix + 'LayerNorm_1/gamma'),
+        loader(prefix + 'LayerNorm_1/beta'),
     ])
     model.get_layer(name='Pooler-Dense').set_weights([
         loader('bert/pooler/dense/kernel'),
