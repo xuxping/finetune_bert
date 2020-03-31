@@ -5,10 +5,16 @@
 
 采用tensorflow的keras实现，目前仅支持tensorflow1.13.1+。本文实现很多参考了[transformers](https://github.com/huggingface/transformers)和[bert4keras](https://github.com/bojone/bert4keras)，在此表示感谢。
 
+### 已支持功能
+* 中文BERT、ALBert
+* 英文版distillbert
+
+**由于时间限制，更新不会太快，需要读懂论文，然后实现和测试等，基本保持一个月支持一个模型**
+
 
 ### 更新 
 2020:  
-* **2020/03/31**: 支持albert,采用谷歌发布的中文版本,增加项目文档      
+* **2020/03/31**: 支持albert,采用谷歌发布的中文版本,并在lcmqc上进行测试,增加项目文档
 * **2020/02/08**: 提供可安装的Python包   
 * **2020/01/03**: 增加在[LCQMC](http://icrc.hitsz.edu.cn/info/1037/1146.htm)数据集上的句对分类示例  
 
@@ -24,10 +30,11 @@
 |model |dataset | dev acc | test acc | batch size | learing rate | train epoch |
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- |  
 |bert|chnsenticorp|94.00|94.08|32|3e-5|4|  
-|bert|LCQMC|88.74|86.11|32|3e-5|4|  
+|bert|LCQMC|88.74|86.11|32|3e-5|4|
+|albert|LCQMC|87.25|87.06|32|3e-5|4|
 |distillbert|sst-2|90.71|90.38|32|4e-5|4|  
 
-**测试结果未精调，仅供效果实现参考**
+**测试结果未精调，仅供测试模型是否正确，能否达到预期的效果**
 
 ### 数据集
 |dataset | description |
