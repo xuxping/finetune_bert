@@ -296,7 +296,7 @@ class ALBertModel(ALBertPretrained):
         length = shape_list(inputs)[1]
 
         def reshape1(inputs):
-            return tf.reshape(inputs, [-1, self.hidden_size])
+            return tf.reshape(inputs, [-1, self.embedding_size])
 
         def reshape2(inputs):
             return tf.reshape(inputs, [batch_size, length, self.vocab_size])
@@ -421,7 +421,7 @@ class ALBertForPretraining(ALBertPretrained):
                                                       kernel_initializer=get_initializer(config.initializer_range),
                                                       name='NSP')
         # MLM
-        self.mlm_dense = tf.keras.layers.Dense(config.hidden_size,
+        self.mlm_dense = tf.keras.layers.Dense(config.embedding_size,
                                                kernel_initializer=get_initializer(config.initializer_range),
                                                name='MLM-Dense')
         self.transform_act_fn = ACT2FN[config.hidden_act]
