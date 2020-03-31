@@ -292,6 +292,7 @@ class BertModel(BertPretrained):
     def embedding_similarity(self, inputs):
         batch_size = shape_list(inputs)[0]
         length = shape_list(inputs)[1]
+
         def reshape1(inputs):
             return tf.reshape(inputs, [-1, self.hidden_size])
 
@@ -326,8 +327,8 @@ class BertModel(BertPretrained):
 
         prev_output = embeddings
         for i in range(self.num_hidden_layers):
-            attention_name = 'Encoder-MultiHeadSelfAttention'
-            feed_forward_name = 'Encoder-FeedForward'
+            attention_name = 'Encoder-%d-MultiHeadSelfAttention' % (i + 1)
+            feed_forward_name = 'Encoder-%d-FeedForward' % (i + 1)
             encoder_output = self.transformer_block(
                 inputs=prev_output,
                 attention_mask=attention_mask,
