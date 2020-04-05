@@ -13,16 +13,7 @@ import numpy as np
 import tensorflow as tf
 from sklearn.metrics import classification_report, confusion_matrix
 
-from finetune import (BertConfig, BertTokenizer,
-                      BertForPretraining,
-                      BertForSequenceClassification)
-from finetune import (ALBertConfig, ALBertTokenizer,
-                      ALBertForPretraining,
-                      ALBertForSequenceClassification)
-from finetune import (DistillBertConfig,
-                      DistillBertTokenizer,
-                      DistillBertForPretraining,
-                      DistillBertForSequenceClassification)
+from finetune import MODEL_ZOOS
 from finetune.dataset import ChnSentiCorpDataset, Sst2Dataset, LcqmcDataset
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
@@ -42,25 +33,10 @@ TASK_NAMES = {
     'sst-2': Sst2Dataset,
 }
 
-MODELS = {
-    "bert": (BertConfig,
-             BertTokenizer,
-             BertForPretraining,
-             BertForSequenceClassification),
-    "albert": (ALBertConfig,
-               ALBertTokenizer,
-               ALBertForPretraining,
-               ALBertForSequenceClassification),
-    'distillbert': (
-        DistillBertConfig,
-        DistillBertTokenizer,
-        DistillBertForPretraining,
-        DistillBertForSequenceClassification)
-}
 
 
 def train(opts):
-    tokenizer = MODELS[opts.model_name][1].from_pretrained(opts.pretrained_path)
+    tokenizer = MODEL_ZOOS[opts.model_name][1].from_pretrained(opts.pretrained_path)
 
     # get dataset
     dataset = TASK_NAMES[opts.task_name](opts.data_dir, tokenizer, opts.max_seq_len)
@@ -76,7 +52,7 @@ def train(opts):
     if opts.use_fp16:
         optimizer = tf.train.experimental.enable_mixed_precision_graph_rewrite(optimizer)
 
-    bert = MODELS[opts.model_name][3].from_pretrained(
+    bert = MODEL_ZOOS[opts.model_name][4].from_pretrained(
         pretrained_path=opts.pretrained_path,
         trainable=True,
         training=False,
@@ -115,7 +91,7 @@ def train(opts):
 
 
 def test(opts):
-    tokenizer = MODELS[opts.model_name][1].from_pretrained(opts.pretrained_path)
+    tokenizer = MODEL_ZOOS[opts.model_name][1].from_pretrained(opts.pretrained_path)
     dataset = TASK_NAMES[opts.task_name](opts.data_dir, tokenizer, opts.max_seq_len)
     X_test, y_test = dataset.get_test_datasets()
     if not opts.use_token_type or opts.model_name == 'distillbert':
@@ -148,7 +124,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--use_fp16', action='store_true', help='use float16 mixed precision')
 
-    parser.add_argument('--model_name', type=str, default='bert', choices=MODELS.keys())
+    parser.add_argument('--model_name', type=str, default='bert', choices=MODEL_ZOOS.keys())
     parser.add_argument('--task_name', type=str, default='chnsenticorp', choices=TASK_NAMES.keys())
     parser.add_argument('--data_dir', type=str, default='../datasets/chnsenticorp')
     parser.add_argument('--pretrained_path', type=str, default=None, help='bert pretrained path')
