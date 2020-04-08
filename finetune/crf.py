@@ -2,6 +2,7 @@
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.contrib.crf import crf_decode, crf_log_likelihood
 from tensorflow.python.keras import backend as K
 
 
@@ -20,10 +21,14 @@ def viterbi_decode(score, trans_matrix):
     trellis[0] = score[0]
 
     for t in range(1, score.shape[0]):
+        # 采用log相加（隐去log）, 防止乘法溢出, 发射矩阵加不加都无所谓
         v = np.expand_dims(trellis[t - 1], 1) + trans_matrix
+        # 选出得分最高的值
         trellis[t] = score[t] + np.max(v, 0)
+        # 选择得分最高的idx
         backpointers[t] = np.argmax(v, 0)
 
+    # 回溯
     viterbi = [np.argmax(trellis[-1])]
     for bp in reversed(backpointers[1:]):
         viterbi.append(bp[viterbi[-1]])
@@ -33,7 +38,7 @@ def viterbi_decode(score, trans_matrix):
 
 class CRF(tf.keras.layers.Layer):
     """Condition Random Field.
-    本质是一个loss
+    https://spaces.ac.cn/archives/5542
     """
 
     def __init__(self,
@@ -43,7 +48,6 @@ class CRF(tf.keras.layers.Layer):
     def build(self, input_shape):
         super(CRF, self).build(input_shape)
         num_labels = input_shape[0][-1].value
-        print(num_labels)
         self.trans = self.add_weight(
             name='transition',
             shape=(num_labels, num_labels),
@@ -122,11 +126,11 @@ class CRF(tf.keras.layers.Layer):
         y_true = y_true * mask
         y_pred = y_pred * mask
 
-        E = self.get_E(y_true, y_pred)
+        E = self.get_E(y_true, y_pred)  # (B,)
 
-        logZ = self.get_logZ(y_pred, mask)
+        logZ = self.get_logZ(y_pred, mask)  # (B,)
 
-        return logZ - E
+        return tf.reduce_mean(logZ - E)
 
     def compute_mask(self, inputs, mask=None):
         return None
@@ -150,9 +154,54 @@ class CRF(tf.keras.layers.Layer):
         # 排除mask的影响
         return tf.reduce_sum(isequal * mask) / tf.reduce_sum(mask)
 
+    def crf_sparse_loss(self, y_true, y_pred):
+        # 采用tensorflow contrib 包进行计算
+        mask = tf.cast(tf.reduce_all(tf.greater(y_pred, -1e6), 2), tf.int32)  # [B, T]
+        sequence_lengths = tf.reduce_sum(mask, 1)  # [B,]
+
+        y_true = tf.reshape(y_true, tf.shape(y_pred)[:-1])
+        y_true = tf.cast(y_true, tf.int32)
+
+        log_likelihood, self.trans = crf_log_likelihood(
+            inputs=y_pred,
+            tag_indices=y_true,
+            transition_params=self.trans,
+            sequence_lengths=sequence_lengths)
+
+        return tf.reduce_mean(-log_likelihood)
+
+    def crf_viterbi_accuracy(self, y_true, y_pred):
+        # 采用tensorflow contrib 包进行计算
+        mask = tf.cast(tf.reduce_all(tf.greater(y_pred, -1e6), 2), tf.int32)  # [B, T]
+        sequence_lengths = tf.reduce_sum(mask, 1)  #
+        # decode_tags [batch_size, max_seq_len]
+        decode_tags, _ = crf_decode(y_pred, self.trans, sequence_lengths)
+        print(decode_tags)
+
+        y_true = tf.reshape(y_true, tf.shape(decode_tags))
+        y_true = tf.cast(y_true, tf.int32)
+        isequal = tf.cast(tf.equal(y_true, decode_tags), tf.float32)
+        mask = tf.cast(mask, tf.float32)
+
+        # 排除mask的影响
+        return tf.reduce_sum(isequal * mask) / tf.reduce_sum(mask)
+
+
+def crf_sparse_loss(y_true, y_pred):
+    # _keras_history记录了最后一层的信息,需要保证crf是最后一层
+    crf, idx = y_pred._keras_history[:2]
+    return crf.crf_sparse_loss(y_true, y_pred)
+
+
+def crf_viterbi_accuracy(y_true, y_pred):
+    crf, idx = y_pred._keras_history[:2]
+    return crf.crf_viterbi_accuracy(y_true, y_pred)
+
 
 custom_objects = {
     'CRF': CRF,
+    'crf_loss': crf_sparse_loss,
+    'crf_viterbi_accuracy': crf_viterbi_accuracy
 }
 
 tf.keras.utils.get_custom_objects().update(custom_objects)
