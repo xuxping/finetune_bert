@@ -1,4 +1,32 @@
-# -*- coding:utf-8 -*-
+"""Finetune Classfication Task
+
+train:
+-------------------------------------------
+python finetune_classifier.py --train  \
+    --model_name bert \
+    --task chnsenticorp \
+    --pretrained_path=./chinese_L-12_H-768_A-12/ \
+    --lr 3e-5 \
+    --batch_size 32 \
+    --epochs 3 \
+    --save_dir ./checkpoint
+
+test:
+-------------------------------------------
+python finetune_classifier.py --test  \
+    --task chnsenticorp \
+    --pretrained_path=./chinese_L-12_H-768_A-12/vocab.txt \
+    --batch_size 32 \
+    --save_dir ./checkpoint/xxx.hdf5
+
+export to tfserving:
+-------------------------------------------
+python tools/keras_to_tf_serving.py \
+    --model_path ./checkpoint/xxx.hdf5 \
+    --export_model_dir ./tfserving_model/ \
+    --model_version keras_bert_xxx
+
+"""
 import argparse
 import codecs
 import os
