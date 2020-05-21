@@ -3,6 +3,7 @@
 import tensorflow as tf
 import numpy as np
 
+
 def gelu(x):
     """ Gaussian Error Linear Unit.
     Original Implementation of the gelu activation function in Google Bert repo when initially created.
@@ -32,3 +33,10 @@ ACT2FN = {"gelu": tf.keras.layers.Activation(gelu),
           "relu": tf.keras.layers.Activation('relu'),
           "swish": tf.keras.layers.Activation(swish),
           "gelu_new": tf.keras.layers.Activation(gelu_new)}
+
+
+def get_activation(activation_string):
+    if activation_string in ACT2FN:
+        return ACT2FN[activation_string]
+    else:
+        raise KeyError("function {} not found in ACT2FN mapping {}".format(activation_string, list(ACT2FN.keys())))
